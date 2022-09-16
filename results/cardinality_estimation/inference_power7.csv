@@ -1,0 +1,7 @@
+,,,,,,,,,
+model,time,max,99th,95th ,90th ,median,mean,gmean,dataset
+naru,,,,,,,,,power7
+mscn,,,,,,,,,power7
+lw-nn,,,,,,,,,power7
+lw-tree,,,,,,,,,power7
+deepdb,,,,,,,,,power7

@@ -1,0 +1,6 @@
+model,time,max,99th,95th ,90th ,median,mean,gmean,dataset
+naru,,,,,,,,,dmv11
+mscn,,,,,,,,,dmv11
+lw-nn,,,,,,,,,dmv11
+lw-tree,,,,,,,,,dmv11
+deepdb,,,,,,,,,dmv11

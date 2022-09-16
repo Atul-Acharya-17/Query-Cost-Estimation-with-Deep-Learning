@@ -1,0 +1,12 @@
+postgres
+
+sudo -u postgres psql
+\l
+\c experiment
+
+(Use single quote for strings)
+
+Cardinality Estimation
+
+just train-naru power7
+

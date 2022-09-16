@@ -1,0 +1,317 @@
+NARU original-resmade_hid32,32,32,32_emb4_ep100_embedInembedOut_warm0-123
+poetry run python -m lecarb test -s123 -dcensus13 -voriginal -wbase -enaru --params "{'psample':2000, 'model':'original-resmade_hid32,32,32,32_emb4_ep100_embedInembedOut_warm0-123'}"
+/home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/venv/lib/python3.8/site-packages/dask/dataframe/utils.py:15: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
+  import pandas.util.testing as tm
+[2022-09-15 23:16:57,765 INFO] lecarb.estimator.naru.naru: torch threads: 16
+[2022-09-15 23:16:57,765 INFO] lecarb.estimator.naru.naru: load model from output/model/census13/original-resmade_hid32,32,32,32_emb4_ep100_embedInembedOut_warm0-123.pt ...
+[2022-09-15 23:16:57,768 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:16:57,771 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:16:57,771 INFO] lecarb.estimator.naru.made: fixed_ordering: None, seed: 0, natural_ordering: True
+[2022-09-15 23:16:57,771 INFO] lecarb.estimator.naru.made: encoded_bins (output): [4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4]
+[2022-09-15 23:16:57,771 INFO] lecarb.estimator.naru.made: encoded_bins (input): [4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4]
+[2022-09-15 23:16:57,775 INFO] lecarb.estimator.utils: Number of model parameters: 14250 (~= 0.05MB)
+[2022-09-15 23:16:57,775 INFO] lecarb.estimator.utils: MADE(
+  (net): Sequential(
+    (0): MaskedLinear(in_features=50, out_features=32, bias=True)
+    (1): MaskedResidualBlock(
+      (layers): ModuleList(
+        (0): MaskedLinear(in_features=32, out_features=32, bias=True)
+        (1): MaskedLinear(in_features=32, out_features=32, bias=True)
+      )
+      (activation): ReLU()
+    )
+    (2): MaskedResidualBlock(
+      (layers): ModuleList(
+        (0): MaskedLinear(in_features=32, out_features=32, bias=True)
+        (1): MaskedLinear(in_features=32, out_features=32, bias=True)
+      )
+      (activation): ReLU()
+    )
+    (3): MaskedResidualBlock(
+      (layers): ModuleList(
+        (0): MaskedLinear(in_features=32, out_features=32, bias=True)
+        (1): MaskedLinear(in_features=32, out_features=32, bias=True)
+      )
+      (activation): ReLU()
+    )
+    (4): MaskedLinear(in_features=32, out_features=50, bias=True)
+  )
+  (embeddings): ModuleList(
+    (0): Embedding(74, 4)
+    (1): Embedding(9, 4)
+    (2): Embedding(16, 4)
+    (3): Embedding(16, 4)
+    (4): Embedding(7, 4)
+    (5): Embedding(15, 4)
+    (6): Embedding(6, 4)
+    (7): Embedding(5, 4)
+    (8): None
+    (9): Embedding(123, 4)
+    (10): Embedding(99, 4)
+    (11): Embedding(96, 4)
+    (12): Embedding(42, 4)
+  )
+  (unk_embeddings): ParameterList(
+      (0): Parameter containing: [torch.FloatTensor of size 1x4]
+      (1): Parameter containing: [torch.FloatTensor of size 1x4]
+      (2): Parameter containing: [torch.FloatTensor of size 1x4]
+      (3): Parameter containing: [torch.FloatTensor of size 1x4]
+      (4): Parameter containing: [torch.FloatTensor of size 1x4]
+      (5): Parameter containing: [torch.FloatTensor of size 1x4]
+      (6): Parameter containing: [torch.FloatTensor of size 1x4]
+      (7): Parameter containing: [torch.FloatTensor of size 1x4]
+      (8): Parameter containing: [torch.FloatTensor of size 1x2]
+      (9): Parameter containing: [torch.FloatTensor of size 1x4]
+      (10): Parameter containing: [torch.FloatTensor of size 1x4]
+      (11): Parameter containing: [torch.FloatTensor of size 1x4]
+      (12): Parameter containing: [torch.FloatTensor of size 1x4]
+  )
+  (direct_io_layer): MaskedLinear(in_features=50, out_features=50, bias=True)
+)
+[2022-09-15 23:16:57,778 INFO] lecarb.estimator.naru.naru: Setting masked_weight in MADE, do not retrain!
+[2022-09-15 23:16:57,778 INFO] lecarb.estimator.naru.naru: Setting masked_weight in MADE, do not retrain!
+[2022-09-15 23:16:57,782 INFO] lecarb.estimator.naru.naru: load and built naru estimator: naru-model=original-resmade_hid32,32,32,32_emb4_ep100_embedInembedOut_warm0-123;psample=2000
+[2022-09-15 23:16:57,782 INFO] lecarb.estimator.utils: torch threads: 16
+[2022-09-15 23:16:57,782 INFO] lecarb.estimator.utils: Start loading queryset:base and labels for version original of dataset census13...
+[2022-09-15 23:16:59,182 INFO] lecarb.estimator.utils: Start test estimator on test queries...
+[2022-09-15 23:17:26,886 INFO] lecarb.estimator.utils: 1000 queries finished
+[2022-09-15 23:17:51,682 INFO] lecarb.estimator.utils: 2000 queries finished
+[2022-09-15 23:18:18,140 INFO] lecarb.estimator.utils: 3000 queries finished
+[2022-09-15 23:18:46,160 INFO] lecarb.estimator.utils: 4000 queries finished
+[2022-09-15 23:19:12,290 INFO] lecarb.estimator.utils: 5000 queries finished
+[2022-09-15 23:19:39,991 INFO] lecarb.estimator.utils: 6000 queries finished
+[2022-09-15 23:20:10,316 INFO] lecarb.estimator.utils: 7000 queries finished
+[2022-09-15 23:20:40,229 INFO] lecarb.estimator.utils: 8000 queries finished
+[2022-09-15 23:21:07,757 INFO] lecarb.estimator.utils: 9000 queries finished
+[2022-09-15 23:21:33,973 INFO] lecarb.estimator.utils: 10000 queries finished
+[2022-09-15 23:21:33,974 INFO] lecarb.estimator.utils: Test finished, 27.25597290992737 ms/query in average
+[2022-09-15 23:21:33,979 INFO] lecarb.estimator.utils: {'max': 231.0, '99th': 4.0, '95th': 2.4172149122806936, '90th': 2.0, 'median': 1.1, 'mean': 1.361242706301795, 'gmean': 1.253760347257665}
+MSCN original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123
+poetry run python -m lecarb test -s123 -dcensus13 -voriginal -wbase -emscn --params "{'model': 'original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123'}"
+/home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/venv/lib/python3.8/site-packages/dask/dataframe/utils.py:15: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
+  import pandas.util.testing as tm
+[2022-09-15 23:21:35,910 INFO] lecarb.estimator.mscn.mscn: torch threads: 16
+[2022-09-15 23:21:35,911 INFO] lecarb.estimator.mscn.mscn: load model from output/model/census13/original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123.pt ...
+[2022-09-15 23:21:35,914 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:21:35,917 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.utils: Number of model parameters: 17393 (~= 0.07MB)
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.utils: SetConv(
+  (sample_mlp1): Linear(in_features=1000, out_features=16, bias=True)
+  (sample_mlp2): Linear(in_features=16, out_features=16, bias=True)
+  (predicate_mlp1): Linear(in_features=17, out_features=16, bias=True)
+  (predicate_mlp2): Linear(in_features=16, out_features=16, bias=True)
+  (out_mlp1): Linear(in_features=32, out_features=16, bias=True)
+  (out_mlp2): Linear(in_features=16, out_features=1, bias=True)
+)
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.mscn.mscn: Overall MSCN model size + sample size = 0.17MB
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.mscn.mscn: load and built mscn estimator: mscn-model=original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.utils: torch threads: 16
+[2022-09-15 23:21:35,918 INFO] lecarb.estimator.utils: Start loading queryset:base and labels for version original of dataset census13...
+[2022-09-15 23:21:37,379 INFO] lecarb.estimator.utils: Start test estimator on test queries...
+[2022-09-15 23:21:41,627 INFO] lecarb.estimator.utils: 1000 queries finished
+[2022-09-15 23:21:45,319 INFO] lecarb.estimator.utils: 2000 queries finished
+[2022-09-15 23:21:49,068 INFO] lecarb.estimator.utils: 3000 queries finished
+[2022-09-15 23:21:53,143 INFO] lecarb.estimator.utils: 4000 queries finished
+[2022-09-15 23:21:56,817 INFO] lecarb.estimator.utils: 5000 queries finished
+[2022-09-15 23:22:01,006 INFO] lecarb.estimator.utils: 6000 queries finished
+[2022-09-15 23:22:04,649 INFO] lecarb.estimator.utils: 7000 queries finished
+[2022-09-15 23:22:08,822 INFO] lecarb.estimator.utils: 8000 queries finished
+[2022-09-15 23:22:12,467 INFO] lecarb.estimator.utils: 9000 queries finished
+[2022-09-15 23:22:15,955 INFO] lecarb.estimator.utils: 10000 queries finished
+[2022-09-15 23:22:15,956 INFO] lecarb.estimator.utils: Test finished, 0.2884105920791626 ms/query in average
+[2022-09-15 23:22:15,959 INFO] lecarb.estimator.utils: {'max': 78.0, '99th': 11.857571428571438, '95th': 5.706302521008397, '90th': 3.9018918918918986, 'median': 1.2081780127354822, 'mean': 2.0560952526301155, 'gmean': 1.5882937107350572}
+LW-NN original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123
+poetry run python -m lecarb test -s123 -dcensus13 -voriginal -wbase -elw_nn --params "{'model': 'original_base-lwnn_hid128_64_32_bin200_ep500_bs32_10k-123', 'use_cache': True}"
+/home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/venv/lib/python3.8/site-packages/dask/dataframe/utils.py:15: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
+  import pandas.util.testing as tm
+[2022-09-15 23:22:18,194 INFO] lecarb.estimator.lw.lw_nn: Torch threads: 16
+[2022-09-15 23:22:18,194 INFO] lecarb.estimator.lw.lw_nn: Load model from output/model/census13/original_base-lwnn_hid128_64_32_bin200_ep500_bs32_10k-123.pt ...
+[2022-09-15 23:22:18,195 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:22:18,198 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:22:18,199 INFO] lecarb.estimator.utils: Number of model parameters: 14209 (~= 0.05MB)
+[2022-09-15 23:22:18,199 INFO] lecarb.estimator.utils: LWNNModel(
+  (hid_layers): Sequential(
+    (layer_0): LWNNLayer(
+      (layer): Sequential(
+        (0): Linear(in_features=29, out_features=128, bias=True)
+        (1): ReLU(inplace=True)
+      )
+    )
+    (layer_1): LWNNLayer(
+      (layer): Sequential(
+        (0): Linear(in_features=128, out_features=64, bias=True)
+        (1): ReLU(inplace=True)
+      )
+    )
+    (layer_2): LWNNLayer(
+      (layer): Sequential(
+        (0): Linear(in_features=64, out_features=32, bias=True)
+        (1): ReLU(inplace=True)
+      )
+    )
+  )
+  (final): Linear(in_features=32, out_features=1, bias=True)
+)
+[2022-09-15 23:22:18,199 INFO] lecarb.estimator.lw.lw_nn: Overall LWNN model size = 0.05MB
+[2022-09-15 23:22:18,200 INFO] lecarb.estimator.lw.lw_nn: Load and build lw(nn) estimator: lwnn-model=original_base-lwnn_hid128_64_32_bin200_ep500_bs32_10k-123
+[2022-09-15 23:22:18,200 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:22:18,202 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:22:18,203 INFO] lecarb.estimator.lw.common: features already built in file /home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/data/census13/lw/original_base_200_123.pkl
+[2022-09-15 23:22:18,214 INFO] lecarb.estimator.utils: torch threads: 16
+[2022-09-15 23:22:18,214 INFO] lecarb.estimator.utils: Start loading queryset:base and labels for version original of dataset census13...
+[2022-09-15 23:22:19,641 INFO] lecarb.estimator.utils: Hack for LW's method, use processed vector instead of raw query
+[2022-09-15 23:22:19,652 INFO] lecarb.estimator.utils: Start test estimator on test queries...
+[2022-09-15 23:22:19,841 INFO] lecarb.estimator.utils: 1000 queries finished
+[2022-09-15 23:22:19,997 INFO] lecarb.estimator.utils: 2000 queries finished
+[2022-09-15 23:22:20,154 INFO] lecarb.estimator.utils: 3000 queries finished
+[2022-09-15 23:22:20,310 INFO] lecarb.estimator.utils: 4000 queries finished
+[2022-09-15 23:22:20,468 INFO] lecarb.estimator.utils: 5000 queries finished
+[2022-09-15 23:22:20,625 INFO] lecarb.estimator.utils: 6000 queries finished
+[2022-09-15 23:22:20,783 INFO] lecarb.estimator.utils: 7000 queries finished
+[2022-09-15 23:22:20,989 INFO] lecarb.estimator.utils: 8000 queries finished
+[2022-09-15 23:22:21,151 INFO] lecarb.estimator.utils: 9000 queries finished
+[2022-09-15 23:22:21,310 INFO] lecarb.estimator.utils: 10000 queries finished
+[2022-09-15 23:22:21,310 INFO] lecarb.estimator.utils: Test finished, 0.13271992206573485 ms/query in average
+[2022-09-15 23:22:21,314 INFO] lecarb.estimator.utils: {'max': 1372.0, '99th': 58.0, '95th': 14.375102459016391, '90th': 8.0, 'median': 1.866676608012725, 'mean': 5.563199997828597, 'gmean': 2.3711559370186905}
+LW-TREE original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123
+poetry run python -m lecarb test -s123 -dcensus13 -voriginal -wbase -elw_tree --params "{'model': 'original_base-lwxgb_tr16_bin200_10k-123', 'use_cache': True}"
+/home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/venv/lib/python3.8/site-packages/dask/dataframe/utils.py:15: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
+  import pandas.util.testing as tm
+[2022-09-15 23:22:23,227 INFO] lecarb.estimator.lw.lw_tree: Load model from output/model/census13/original_base-lwxgb_tr16_bin200_10k-123.pkl ...
+[2022-09-15 23:22:23,244 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:22:23,247 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:22:23,508 INFO] lecarb.estimator.postgres: construct statistics finished, using 0.0042 minutes, All statistics consumes 0.01 MBs
+[2022-09-15 23:22:23,509 INFO] lecarb.estimator.lw.lw_tree: Load and built lw(tree) estimator: lwtree-model=original_base-lwxgb_tr16_bin200_10k-123
+[2022-09-15 23:22:23,509 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:22:23,513 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:22:23,513 INFO] lecarb.estimator.lw.common: features already built in file /home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/data/census13/lw/original_base_200_123.pkl
+[2022-09-15 23:22:23,523 INFO] lecarb.estimator.utils: torch threads: 16
+[2022-09-15 23:22:23,523 INFO] lecarb.estimator.utils: Start loading queryset:base and labels for version original of dataset census13...
+[2022-09-15 23:22:24,938 INFO] lecarb.estimator.utils: Hack for LW's method, use processed vector instead of raw query
+[2022-09-15 23:22:24,948 INFO] lecarb.estimator.utils: Start test estimator on test queries...
+[2022-09-15 23:22:25,193 INFO] lecarb.estimator.utils: 1000 queries finished
+[2022-09-15 23:22:25,561 INFO] lecarb.estimator.utils: 2000 queries finished
+[2022-09-15 23:22:26,013 INFO] lecarb.estimator.utils: 3000 queries finished
+[2022-09-15 23:22:26,586 INFO] lecarb.estimator.utils: 4000 queries finished
+[2022-09-15 23:22:27,199 INFO] lecarb.estimator.utils: 5000 queries finished
+[2022-09-15 23:22:27,822 INFO] lecarb.estimator.utils: 6000 queries finished
+[2022-09-15 23:22:28,369 INFO] lecarb.estimator.utils: 7000 queries finished
+[2022-09-15 23:22:28,917 INFO] lecarb.estimator.utils: 8000 queries finished
+[2022-09-15 23:22:29,469 INFO] lecarb.estimator.utils: 9000 queries finished
+[2022-09-15 23:22:30,017 INFO] lecarb.estimator.utils: 10000 queries finished
+[2022-09-15 23:22:30,020 INFO] lecarb.estimator.utils: Test finished, 0.41490561962127687 ms/query in average
+[2022-09-15 23:22:30,028 INFO] lecarb.estimator.utils: {'max': 1880.0, '99th': 21.0, '95th': 8.250010460251046, '90th': 5.642857142857143, 'median': 1.6666666666666667, 'mean': 3.476372765545492, 'gmean': 2.0519181065589702}
+DEEPDB original_base-mscn_hid16_sample1000_ep200_bs1024_100k-123
+poetry run python -m lecarb test -s123 -dcensus13 -voriginal -wbase -edeepdb --params "{'model': 'original-spn_sample48842_rdc0.3_ms0.01-123'}" --overwrite
+/home/atul/Desktop/Query-Cost-Estimation-with-Deep-Learning/venv/lib/python3.8/site-packages/dask/dataframe/utils.py:15: FutureWarning: pandas.util.testing is deprecated. Use the functions in the public API at pandas.testing instead.
+  import pandas.util.testing as tm
+[2022-09-15 23:22:31,846 INFO] lecarb.estimator.deepdb.deepdb: load model from output/model/census13/original-spn_sample48842_rdc0.3_ms0.01-123.pkl ...
+[2022-09-15 23:22:31,859 INFO] lecarb.estimator.deepdb.deepdb: Get SPN: {'nodes': 1502, 'edges': 1171, 'layers': 19, 'count_per_type': {<class 'aqp_spn.aqp_leaves.Sum'>: 104, <class 'spn.structure.Base.Product'>: 330, <class 'aqp_spn.aqp_leaves.IdentityNumericLeaf'>: 158, <class 'aqp_spn.aqp_leaves.Categorical'>: 910}}
+[2022-09-15 23:22:31,859 INFO] lecarb.dataset.dataset: table exists, load...
+[2022-09-15 23:22:31,862 INFO] lecarb.dataset.dataset: load finished: Table census13_original (48842 rows, 4.84MB, columns:
+Column(age, type=int64, vocab size=74, min=17, max=90, has NaN=False)
+Column(workclass, type=category, vocab size=9, min=?, max=Without-pay, has NaN=False)
+Column(education, type=category, vocab size=16, min=10th, max=Some-college, has NaN=False)
+Column(education_num, type=int64, vocab size=16, min=1, max=16, has NaN=False)
+Column(marital_status, type=category, vocab size=7, min=Divorced, max=Widowed, has NaN=False)
+Column(occupation, type=category, vocab size=15, min=?, max=Transport-moving, has NaN=False)
+Column(relationship, type=category, vocab size=6, min=Husband, max=Wife, has NaN=False)
+Column(race, type=category, vocab size=5, min=Amer-Indian-Eskimo, max=White, has NaN=False)
+Column(sex, type=category, vocab size=2, min=Female, max=Male, has NaN=False)
+Column(capital_gain, type=int64, vocab size=123, min=0, max=99999, has NaN=False)
+Column(capital_loss, type=int64, vocab size=99, min=0, max=4356, has NaN=False)
+Column(hours_per_week, type=int64, vocab size=96, min=1, max=99, has NaN=False)
+Column(native_country, type=category, vocab size=42, min=?, max=Yugoslavia, has NaN=False))
+[2022-09-15 23:22:31,862 INFO] lecarb.estimator.utils: torch threads: 16
+[2022-09-15 23:22:31,862 INFO] lecarb.estimator.utils: Start loading queryset:base and labels for version original of dataset census13...
+[2022-09-15 23:22:33,306 INFO] lecarb.estimator.utils: Start test estimator on test queries...
+[2022-09-15 23:22:43,828 INFO] lecarb.estimator.utils: 1000 queries finished
+[2022-09-15 23:22:54,072 INFO] lecarb.estimator.utils: 2000 queries finished
+[2022-09-15 23:23:04,511 INFO] lecarb.estimator.utils: 3000 queries finished
+[2022-09-15 23:23:15,074 INFO] lecarb.estimator.utils: 4000 queries finished
+[2022-09-15 23:23:25,285 INFO] lecarb.estimator.utils: 5000 queries finished
+[2022-09-15 23:23:35,602 INFO] lecarb.estimator.utils: 6000 queries finished
+[2022-09-15 23:23:45,860 INFO] lecarb.estimator.utils: 7000 queries finished
+[2022-09-15 23:23:56,244 INFO] lecarb.estimator.utils: 8000 queries finished
+[2022-09-15 23:24:06,453 INFO] lecarb.estimator.utils: 9000 queries finished
+[2022-09-15 23:24:16,236 INFO] lecarb.estimator.utils: 10000 queries finished
+[2022-09-15 23:24:16,237 INFO] lecarb.estimator.utils: Test finished, 8.10766851902008 ms/query in average
+[2022-09-15 23:24:16,242 INFO] lecarb.estimator.utils: {'max': 595.0, '99th': 7.0, '95th': 3.5, '90th': 2.5, 'median': 1.0880521495998359, 'mean': 1.721525078631651, 'gmean': 1.3425417472605434}

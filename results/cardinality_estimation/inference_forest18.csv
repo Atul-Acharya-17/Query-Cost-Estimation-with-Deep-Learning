@@ -1,0 +1,6 @@
+model,time,max,99th,95th ,90th ,median,mean,gmean,dataset
+naru,,,,,,,,,forest18
+mscn,,,,,,,,,forest18
+lw-nn,,,,,,,,,forest18
+lw-tree,,,,,,,,,forest18
+deepdb,,,,,,,,,forest18

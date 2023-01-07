@@ -4,3 +4,4 @@ pyvenv.cfg
 bin/
 include/
 data/*
+*__pycache__

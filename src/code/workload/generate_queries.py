@@ -53,7 +53,7 @@ def generate_queries(
         strings = []
         for i in range(num):
             query = qgen.generate()
-            query_string = query_2_sql(query=query, table=table)
+            query_string = query_2_sql(query=query, table=table, aggregate=random.choice([True, False]))
             strings.append(query_string)
             queries.append(query)
             if (i+1) % 1000 == 0:

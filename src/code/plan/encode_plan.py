@@ -3,8 +3,10 @@ import argparse
 import os
 from .node_features import convert_plan_to_sequence
 from .utils import class2json
+from .bitmap_features import TreeNode, recover_tree, get_bitmap, bitand
 
 from ..constants import DATA_ROOT
+from ..data import sample_num
 
 def get_subplan(root):
     results = []
@@ -35,25 +37,51 @@ def get_alias2table(root, alias2table):
 def encode_plan(input_path, out_path):
     with open(out_path, 'w') as out:
         with open(input_path) as f:
-            # for _, plan in enumerate(f.readlines()):
-            #     print(len(plan))
-            #     if plan != 'null\n':
-            #         plan = json.loads(plan)['Plan']
-            #         alias2table = {}
-            #         get_alias2table(plan, alias2table)
-            #         subplan, cost, cardinality = get_plan(plan)
-            #         seq, _ = convert_plan_to_sequence(subplan, alias2table)
-            #         seqs = PlanInSeq(seq, cost, cardinality)
-            #         out.write(class2json(seqs)+'\n')
             plans = json.load(f)
-
             for index, plan in enumerate(plans):
                 alias2table = {}
                 get_alias2table(plan, alias2table)
                 root, cost, cardinality = get_plan(plan)
                 seq, _ = convert_plan_to_sequence(root, alias2table)
                 seqs = PlanInSeq(seq, cost, cardinality)
-                out.write(class2json(seqs)+'\n')
+                parsed_plan = json.loads(class2json(seqs))
+                nodes_with_sample = []
+                for node in parsed_plan['seq']:
+                    bitmap_filter = []
+                    bitmap_index = []
+                    bitmap_other = []
+                    if node != None and 'condition' in node:
+                        predicates = node['condition']
+                        if len(predicates) > 0:
+                            root = TreeNode(predicates[0], None)
+                            if len(predicates) > 1:
+                                recover_tree(predicates[1:], root)
+                            bitmap_other = get_bitmap(root)
+                    if node != None and 'condition_filter' in node:
+                        predicates = node['condition_filter']
+                        if len(predicates) > 0:
+                            root = TreeNode(predicates[0], None)
+                            if len(predicates) > 1:
+                                recover_tree(predicates[1:], root)
+                            bitmap_filter = get_bitmap(root)
+                    if node != None and 'condition_index' in node:
+                        predicates = node['condition_index']
+                        if len(predicates) > 0:
+                            root = TreeNode(predicates[0], None)
+                            if len(predicates) > 1:
+                                recover_tree(predicates[1:], root)
+                            bitmap_index = get_bitmap(root)
+                    if len(bitmap_filter) > 0 or len(bitmap_index) > 0 or len(bitmap_other) > 0:
+                        bitmap = [1 for _ in range(sample_num)]
+                        bitmap = bitand(bitmap, bitmap_filter)
+                        bitmap = bitand(bitmap, bitmap_index)
+                        bitmap = bitand(bitmap, bitmap_other)
+                        node['bitmap'] = ''.join([str(x) for x in bitmap])
+                    nodes_with_sample.append(node)
+                parsed_plan['seq'] = nodes_with_sample
+
+                out.write(json.dumps(parsed_plan))
+                out.write('\n')
 
 
 def parse_args():

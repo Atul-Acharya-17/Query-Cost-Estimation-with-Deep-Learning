@@ -6,11 +6,15 @@ import re
 
 
 def encode_node(node, alias2table):
-    relation_name, index_name = None, None
+    relation_name, index_name, cardinality, cost = None, None, None, None
     if 'Relation Name' in node:
         relation_name = node['Relation Name']
     if 'Index Name' in node:
         index_name = node['Index Name']
+    if 'Actual Rows' in node:
+        cardinality = node['Actual Rows']
+    if 'Actual Total Time' in node:
+        cost = node['Actual Total Time']
     if node['Node Type'] == 'Materialize':
         return Materialize(), None
     elif node['Node Type'] == 'Hash':
@@ -19,41 +23,41 @@ def encode_node(node, alias2table):
         keys = [change_alias2table(key, alias2table) for key in node['Sort Key']]
         return Sort(keys), None
     elif node['Node Type'] == 'BitmapAnd':
-        return BitmapCombine('BitmapAnd'), None
+        return BitmapCombine('BitmapAnd', cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'BitmapOr':
-        return BitmapCombine('BitmapOr'), None
+        return BitmapCombine('BitmapOr', cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Result':
-        return Result(), None
+        return Result(cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Hash Join':
-        return Join('Hash Join', pre2seq(node["Hash Cond"], alias2table, relation_name, index_name, True)), None
+        return Join('Hash Join', pre2seq(node["Hash Cond"], alias2table, relation_name, index_name, True), cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Merge Join':
-        return Join('Merge Join', pre2seq(node["Merge Cond"], alias2table, relation_name, index_name, True)), None
+        return Join('Merge Join', pre2seq(node["Merge Cond"], alias2table, relation_name, index_name, True), cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Nested Loop':
         if 'Join Filter' in node:
             condition = pre2seq(node['Join Filter'], alias2table, relation_name, index_name, True)
         else:
             condition = []
-        return Join('Nested Loop', condition), None
+        return Join('Nested Loop', condition, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Aggregate':
         if 'Group Key' in node:
             keys = [change_alias2table(key, alias2table) for key in node['Group Key']]
         else:
             keys = []
-        return Aggregate(node['Strategy'], keys), None
+        return Aggregate(node['Strategy'], keys, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Seq Scan':
         if 'Filter' in node:
             condition_seq_filter = pre2seq(node['Filter'], alias2table, relation_name, index_name)
         else:
             condition_seq_filter = []
         condition_seq_index, relation_name, index_name = [], node["Relation Name"], None
-        return Scan('Seq Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), None
+        return Scan('Seq Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Bitmap Heap Scan':
         if 'Filter' in node:
             condition_seq_filter = pre2seq(node['Filter'], alias2table, relation_name, index_name)
         else:
             condition_seq_filter = []
         condition_seq_index, relation_name, index_name = [], node["Relation Name"], None
-        return Scan('Bitmap Heap Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), None
+        return Scan('Bitmap Heap Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Index Scan':
         if 'Filter' in node:
             condition_seq_filter = pre2seq(node['Filter'], alias2table, relation_name, index_name)
@@ -65,9 +69,9 @@ def encode_node(node, alias2table):
             condition_seq_index = []
         relation_name, index_name = node["Relation Name"], node['Index Name']
         if len(condition_seq_index) == 1 and re.match(r'[a-zA-Z]+', condition_seq_index[0].right_value) != None:
-            return Scan('Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), condition_seq_index
+            return Scan('Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), condition_seq_index
         else:
-            return Scan('Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), None
+            return Scan('Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Bitmap Index Scan':
         if 'Index Cond' in node:
             condition_seq_index = pre2seq(node['Index Cond'], alias2table, relation_name, index_name)
@@ -75,9 +79,9 @@ def encode_node(node, alias2table):
             condition_seq_index = []
         condition_seq_filter, relation_name, index_name = [], None, node['Index Name']
         if len(condition_seq_index) == 1 and re.match(r'[a-zA-Z]+', condition_seq_index[0].right_value) != None:
-            return Scan('Bitmap Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), condition_seq_index
+            return Scan('Bitmap Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), condition_seq_index
         else:
-            return Scan('Bitmap Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), None
+            return Scan('Bitmap Index Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Index Only Scan':
         if 'Index Cond' in node:
             condition_seq_index = pre2seq(node['Index Cond'], alias2table, relation_name, index_name)
@@ -85,9 +89,9 @@ def encode_node(node, alias2table):
             condition_seq_index = []
         condition_seq_filter, relation_name, index_name = [], None, node['Index Name']
         if len(condition_seq_index) == 1 and re.match(r'[a-zA-Z]+', condition_seq_index[0].right_value) != None:
-            return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), condition_seq_index
+            return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), condition_seq_index
         else:
-            return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name), None
+            return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
     else:
         raise Exception('Unsupported Node Type: '+node['Node Type'])
         return None, None

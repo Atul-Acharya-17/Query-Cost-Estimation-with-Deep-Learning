@@ -8,7 +8,7 @@ from . import generator
 from .generator import QueryGenerator
 from .workload import dump_queryset, query_2_sql, dump_querystring
 from ..dataset.dataset import load_table, Table, Column
-
+from ..constants import NUM_TRAIN, NUM_VAL, NUM_TEST
 import argparse
 
 L = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     params = {'attr': {'pred_number': 1.0}, \
             'center': {'distribution': 0.9, 'vocab_ood': 0.1}, \
             'width': {'uniform': 0.5, 'exponential': 0.5}, \
-            'number': {'train': 1000, 'valid': 100, 'test': 100}
+            'number': {'train': NUM_TRAIN, 'valid': NUM_VAL, 'test': NUM_TEST}
         }
 
     generate_queries(seed=seed, dataset=dataset, version=version, name=name, params=params)

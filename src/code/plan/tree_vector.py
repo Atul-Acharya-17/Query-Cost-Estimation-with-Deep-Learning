@@ -6,7 +6,7 @@ import json
 import os
 import pickle
 
-from ..constants import DATA_ROOT
+from ..constants import DATA_ROOT, BATCH_SIZE
 from .utils import encode_sample, bitand, normalize_label, obtain_upper_bound_query_size
 from .map import physic_ops_id, compare_ops_id, bool_ops_id
 from .entities import PredicateNode, PredicateNodeVector, PlanNodeVector
@@ -265,7 +265,7 @@ def chunks(arr, batch_size):
     return [arr[i:i+batch_size] for i in range(0, len(arr), batch_size)]
 
 
-def save_data_job(plans, batch_size=64, phase='train', dataset='census13'):
+def save_data_job(plans, batch_size=BATCH_SIZE, phase='train', dataset='census13'):
     suffix = phase + "_"
     batch_id = 0
     directory=f'{DATA_ROOT}/{dataset}/workload/tree_data'
@@ -322,5 +322,5 @@ if __name__ == '__main__':
                 plan = json.loads(seq)
                 plans.append(plan)
 
-        save_data_job(plans=plans, batch_size=64, phase=phase, dataset='census13')
+        save_data_job(plans=plans, batch_size=BATCH_SIZE, phase=phase, dataset='census13')
 

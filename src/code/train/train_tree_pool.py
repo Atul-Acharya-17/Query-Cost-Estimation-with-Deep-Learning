@@ -9,7 +9,7 @@ from ..plan.utils import unnormalize
 from ..plan.entities import PredicateNodeVector, PlanNodeVector
 from .loss_fn import q_error
 from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id
-from ..constants import DATA_ROOT
+from ..constants import DATA_ROOT, NUM_TRAIN, NUM_VAL, NUM_TEST, BATCH_SIZE
 from ..plan.utils import obtain_upper_bound_query_size
 from ..networks.tree_pool import TreePool
 from .helpers import get_batch_job_tree
@@ -27,7 +27,7 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
     hidden_dim = 128
     mlp_hid_dim = 256
     model = TreePool(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, hidden_dim, mlp_hid_dim)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(num_epochs):
         model.train()
@@ -137,6 +137,12 @@ if __name__ == '__main__':
 
     directory = str(DATA_ROOT) + "/" + dataset + "/workload/tree_data/"
 
-    model = train(0, 15, 0, 1, 200, directory=directory)
-    cost_loss, card_loss = validate(model, 0, 1, directory, 'test')
+    train_end = NUM_TRAIN // BATCH_SIZE - 1 if NUM_TRAIN % BATCH_SIZE == 0 else NUM_TRAIN // BATCH_SIZE
+    valid_end = NUM_VAL // BATCH_SIZE - 1 if NUM_VAL % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
+    test_end = NUM_TEST // BATCH_SIZE - 1 if NUM_TEST % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
+    
+    epochs = 200
+
+    model = train(0, train_end, 0, valid_end, epochs, directory=directory)
+    cost_loss, card_loss = validate(model, 0, test_end, directory, 'test')
     print(f"test cost loss: {cost_loss}, test cardinality loss: {card_loss}")

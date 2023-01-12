@@ -1,4 +1,4 @@
-from ..networks.TreeLSTM import TreeLSTM
+from ..networks.tree_lstm import TreeLSTM
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader

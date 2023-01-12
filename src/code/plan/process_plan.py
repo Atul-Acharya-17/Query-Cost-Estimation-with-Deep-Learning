@@ -1,11 +1,12 @@
 import json
 import argparse
 import os
+
 from .node_features import convert_plan_to_sequence
 from .utils import class2json
 from .bitmap_features import TreeNode, recover_tree, get_bitmap, bitand
-
 from ..constants import DATA_ROOT, SAMPLE_NUM
+
 
 def get_subplan(root):
     results = []

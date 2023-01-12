@@ -1,16 +1,15 @@
-
 import torch
 import torch.nn as nn
-import time
 import torch.nn.functional as F
 
 from multiprocessing import Pool
 
 
 class TreePool(nn.Module):
+
     def __init__(self, op_dim, pred_dim , hidden_dim, hid_dim):
+
         super(TreePool, self).__init__()
-        print(pred_dim)
         self.op_dim = op_dim
         self.pred_dim = pred_dim
         self.lstm_hidden_dim = hidden_dim
@@ -33,8 +32,8 @@ class TreePool(nn.Module):
         return torch.zeros(1, dim)
 
     def init_hidden(self, hidden_dim, batch_size=1):
-        return (torch.zeros(1, 1, hidden_dim),
-                torch.zeros(1, 1, hidden_dim))
+        return (torch.zeros(1, batch_size, hidden_dim),
+                torch.zeros(1, batch_size, hidden_dim))
         
 
     def pool(self, condition_root):
@@ -54,14 +53,12 @@ class TreePool(nn.Module):
         if condition_root.op_type == "Compare":
             return self.predicate_embed(condition_root.get_torch_tensor())
 
-    
     def tree_representation(self, node):
 
         condition1_root = node.condition1_root
 
         if condition1_root is None:
             condition1_vector = self.zeroes(self.pred_dim)
-
         else:
             condition1_vector = self.pool(condition1_root)
 
@@ -72,8 +69,7 @@ class TreePool(nn.Module):
         else:
             condition2_vector = self.pool(condition2_root) 
 
-        #operation_vector = self.operation_embed(node.get_torch_operation_vector())
-        operation_vector = node.get_torch_operation_vector()
+        operation_vector = self.operation_embed(node.get_torch_operation_vector())
         sample_bitmap_vector = self.sample_bitmap_embed(node.get_torch_sample_bitmap_vector()) * node.has_cond
 
         if len(node.children) == 0:

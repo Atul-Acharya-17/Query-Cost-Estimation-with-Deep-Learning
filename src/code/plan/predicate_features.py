@@ -3,6 +3,7 @@ import pypred
 from .predicate_operations import Comparison, Operator
 from .utils import remove_invalid_tokens
 
+
 def convert_predicate2sequence(predicate_tree, alias2table, relation_name, index_name, is_join_condition):
     current_level = -1
     current_line = 0

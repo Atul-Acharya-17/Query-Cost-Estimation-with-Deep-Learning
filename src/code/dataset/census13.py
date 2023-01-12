@@ -1,5 +1,6 @@
-from ..constants import DATA_ROOT, SAMPLE_NUM
 import pandas as pd
+
+from ..constants import DATA_ROOT, SAMPLE_NUM
 from ..plan.utils import encode_sample
 
 data = {}

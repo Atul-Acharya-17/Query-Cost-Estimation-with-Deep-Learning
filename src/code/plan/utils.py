@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import re
 import numpy as np
+import torch
 
 
 def remove_invalid_tokens(predicate):
@@ -57,5 +58,59 @@ def todict(obj, classkey=None):
 def encode_sample(sample:str):
     return [int(i) for i in sample]
 
-def bitand(sample1, sample2):
+def bitand_numpy(sample1, sample2):
     return np.minimum(sample1, sample2)
+
+
+def bitand(sample1, sample2):
+    return [float(x) for x in np.minimum(sample1, sample2)]
+
+def normalize_label(labels, mini, maxi):
+    labels_norm = (labels - mini) / (maxi - mini)
+    labels_norm = torch.min(labels_norm, torch.ones_like(labels_norm))
+    labels_norm = torch.max(labels_norm, torch.zeros_like(labels_norm))
+    return labels_norm
+
+def unnormalize(vecs, mini, maxi):
+    return (vecs * (maxi - mini) + mini)
+
+def obtain_upper_bound_query_size(path):
+    plan_node_max_num = 0
+    condition_max_num = 0
+    cost_label_max = 0.0
+    cost_label_min = 9999999999.0
+    card_label_max = 0.0
+    card_label_min = 9999999999.0
+    plans = []
+    with open(path, 'r') as f:
+        for plan in f.readlines():
+            plan = json.loads(plan)
+            plans.append(plan)
+            cost = plan['cost']
+            cardinality = plan['cardinality']
+
+            if cost > cost_label_max:
+                cost_label_max = cost
+            elif cost < cost_label_min:
+                cost_label_min = cost
+            if cardinality > card_label_max:
+                card_label_max = cardinality
+            elif cardinality < card_label_min:
+                card_label_min = cardinality
+            sequence = plan['seq']
+            plan_node_num = len(sequence)
+            if plan_node_num > plan_node_max_num:
+                plan_node_max_num = plan_node_num
+            for node in sequence:
+                if node == None:
+                    continue
+                if 'condition_filter' in node:
+                    condition_num = len(node['condition_filter'])
+                    if condition_num > condition_max_num:
+                        condition_max_num = condition_num
+                if 'condition_index' in node:
+                    condition_num = len(node['condition_index'])
+                    if condition_num > condition_max_num:
+                        condition_max_num = condition_num
+
+    return plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max

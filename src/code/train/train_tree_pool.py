@@ -1,55 +1,32 @@
-from ..networks.TreePool import TreePool
+import argparse
+import pickle
+
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import argparse
-import time
+
+from ..plan.utils import unnormalize
+from ..plan.entities import PredicateNodeVector, PlanNodeVector
+from .loss_fn import q_error
 from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id
 from ..constants import DATA_ROOT
-from ..plan.tree_vector import obtain_upper_bound_query_size
-import numpy as np
-import pickle
+from ..plan.utils import obtain_upper_bound_query_size
+from ..networks.tree_pool import TreePool
+from .helpers import get_batch_job_tree
 
-from ..plan.tree_vector import TreeVector, PlanNodeVector
 
-def normalize_label(labels, mini, maxi):
-    labels_norm = (labels - mini) / (maxi - mini)
-    labels_norm = torch.min(labels_norm, torch.ones_like(labels_norm))
-    labels_norm = torch.max(labels_norm, torch.zeros_like(labels_norm))
-    return labels_norm
+def q_error_loss(pred, target, mini, maxi):
+    pred = unnormalize(pred, mini=mini, maxi=maxi)
+    target = unnormalize(target, mini=mini, maxi=maxi)
+    q_err = q_error(pred, target)
+    return q_err
 
-def unnormalize(vecs, mini, maxi):
-    return (vecs * (maxi - mini) + mini)
-
-def q_error(pred, target, mini, maxi):
-    pred = unnormalize(pred, mini, maxi)
-    target = unnormalize(target, mini, maxi)
-    if pred == 0 and target == 0:
-        return 1
-    elif pred == 0:
-        return target
-    elif target == 0:
-        return pred
-    else:
-        return max(pred, target) / min(pred, target)
-
-def get_batch_job(batch_id, phase, directory):
-    suffix = phase + "_"
-
-    with open(f'{directory}/input_batch_{suffix+str(batch_id)}.pkl', 'rb') as handle:
-        input_batch = pickle.load(handle)
-    with open(f'{directory}/target_cost_{suffix+str(batch_id)}.pkl', 'rb') as handle:
-        target_cost = pickle.load(handle)
-    with open(f'{directory}/target_cardinality_{suffix+str(batch_id)}.pkl', 'rb') as handle:
-        target_card = pickle.load(handle)
-
-    return input_batch, target_cost, target_card
 
 def train(train_start, train_end, validate_start, validate_end, num_epochs, directory):
 
     hidden_dim = 128
-    hid_dim = 256
-    model = TreePool(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, hidden_dim, hid_dim)
+    mlp_hid_dim = 256
+    model = TreePool(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, hidden_dim, mlp_hid_dim)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(num_epochs):
@@ -61,7 +38,7 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
         num_samples = 0
         model.train()
         for batch_idx in range(train_start, train_end + 1):
-            input_batch, target_cost, target_cardinality = get_batch_job(batch_idx, phase='train', directory=directory)
+            input_batch, target_cost, target_cardinality = get_batch_job_tree(batch_idx, phase='train', directory=directory)
             target_cost, target_cardinality= torch.FloatTensor(target_cost), torch.FloatTensor(target_cardinality)
             target_cost, target_cardinality = Variable(target_cost), Variable(target_cardinality)
 
@@ -78,8 +55,8 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
 
                 estimate_cost, estimate_cardinality = model(plan)
 
-                cost_loss = q_error(estimate_cost[0], cost, cost_label_min, cost_label_max)
-                card_loss = q_error(estimate_cardinality[0], card, card_label_min, card_label_max)
+                cost_loss = q_error_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
+                card_loss = q_error_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
 
                 loss += cost_loss + card_loss
                 cost_loss_total += cost_loss.item()
@@ -106,7 +83,7 @@ def validate(model, start_idx, end_idx, directory, phase='valid'):
     card_losses = []
 
     for batch_idx in range(start_idx, end_idx + 1):
-        input_batch, target_cost, target_cardinality = get_batch_job(batch_idx, phase=phase, directory=directory)
+        input_batch, target_cost, target_cardinality = get_batch_job_tree(batch_idx, phase=phase, directory=directory)
         target_cost, target_cardinality= torch.FloatTensor(target_cost), torch.FloatTensor(target_cardinality)
         target_cost, target_cardinality = Variable(target_cost), Variable(target_cardinality)
         for idx in range(len(input_batch)):
@@ -118,8 +95,8 @@ def validate(model, start_idx, end_idx, directory, phase='valid'):
             target_cost = target_cost
             target_cardinality = target_cardinality
 
-            cost_loss = q_error(estimate_cost[0], cost, cost_label_min, cost_label_max)
-            card_loss = q_error(estimate_cardinality[0], card, card_label_min, card_label_max)
+            cost_loss = q_error_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
+            card_loss = q_error_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
             
             cost_losses.append(cost_loss.item())
             card_losses.append(card_loss.item())
@@ -160,4 +137,6 @@ if __name__ == '__main__':
 
     directory = str(DATA_ROOT) + "/" + dataset + "/workload/tree_data/"
 
-    train(0, 15, 0, 1, 200, directory=directory)
+    model = train(0, 15, 0, 1, 200, directory=directory)
+    cost_loss, card_loss = validate(model, 0, 1, directory, 'test')
+    print(f"test cost loss: {cost_loss}, test cardinality loss: {card_loss}")

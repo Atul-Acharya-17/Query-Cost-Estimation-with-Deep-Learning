@@ -3,6 +3,7 @@ import json
 import re
 import pandas as pd
 import re
+import numpy as np
 
 
 def remove_invalid_tokens(predicate):
@@ -52,3 +53,9 @@ def todict(obj, classkey=None):
         return data
     else:
         return obj
+
+def encode_sample(sample:str):
+    return [int(i) for i in sample]
+
+def bitand(sample1, sample2):
+    return np.minimum(sample1, sample2)

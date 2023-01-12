@@ -9,3 +9,5 @@ load_dotenv()
 DATA_ROOT = Path(os.environ["DATA_ROOT"])
 PKL_PROTO = 4
 DATABASE_URL = os.environ["DATABASE_URL"]
+
+SAMPLE_NUM = 1000

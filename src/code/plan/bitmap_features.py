@@ -1,6 +1,7 @@
 import pandas as pd
 import re
-from ..data import data, sample, sample_num
+
+from ..constants import SAMPLE_NUM
 
 class TreeNode(object):
     def __init__(self, current_vec, parent):
@@ -31,7 +32,6 @@ def recover_tree(vecs, parent):
             return vecs[1:]
         node = TreeNode(vecs[0], parent)
 
-        
 def bitand(bit1, bit2):
     if len(bit1) > 0 and len(bit2) > 0:
         result = []
@@ -198,7 +198,19 @@ def isSelected(row_value, predicate, dtype):
     return True
 
 
-def get_bitmap(root):
+def get_bitmap(root, dataset="random"):
+
+    if dataset == "census":
+        from ..data_preparation.census13 import data, sample
+    elif dataset == "forest":
+        from ..data_preparation.census13 import data, sample
+    elif dataset == "power":
+        from ..data_preparation.census13 import data, sample
+    elif dataset == "dmv":
+        from ..data_preparation.census13 import data, sample
+    else:
+        from ..data_preparation.census13 import data, sample
+
     predicate = root.get_item()
     if predicate != None and predicate['op_type'] == 'Compare':
         table_name = predicate['left_value'].split('.')[0]
@@ -213,7 +225,7 @@ def get_bitmap(root):
                     vec.append(1)
                 else:
                     vec.append(0)
-            for i in range(len(vec), sample_num):
+            for i in range(len(vec), SAMPLE_NUM):
                 vec.append(0)
         elif not predicate['right_value'].split('.')[0] in data:
             dtype = data[table_name].dtypes[column]
@@ -222,7 +234,7 @@ def get_bitmap(root):
                     vec.append(1)
                 else:
                     vec.append(0)
-            for i in range(len(vec), sample_num):
+            for i in range(len(vec), SAMPLE_NUM):
                 vec.append(0)
         return vec
     elif predicate != None and predicate['op_type'] == 'Bool':

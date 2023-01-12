@@ -53,7 +53,7 @@ def generate_queries(
         strings = []
         for i in range(num):
             query = qgen.generate()
-            query_string = query_2_sql(query=query, table=table, aggregate=random.choice([True, False]))
+            query_string = query_2_sql(query=query, table=table, aggregate=random.choice([True, False, False, False, False]))
             strings.append(query_string)
             queries.append(query)
             if (i+1) % 1000 == 0:
@@ -65,7 +65,7 @@ def generate_queries(
     dump_queryset(dataset, name, queryset)
 
     # Save every query in sql file
-    dump_querystring(dataset, name, query_strings)
+    dump_querystring(dataset, query_strings)
 
 def parse_args():
     parser = argparse.ArgumentParser()

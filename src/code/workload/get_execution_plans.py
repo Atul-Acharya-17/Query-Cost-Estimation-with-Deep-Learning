@@ -24,17 +24,17 @@ class Postgres():
         return res
 
 
-def get_execution_plans(dataset, version, name, phases=['train', 'valid', 'test']):
+def get_execution_plans(dataset, version, phases=['train', 'valid', 'test']):
 
     postgres = Postgres()
 
-    query_path = DATA_ROOT / dataset / "workload"
+    query_path = DATA_ROOT / dataset / "workload" / "queries"
 
     query_plans = {}
 
     for phase in phases:
         plans = []
-        with open(query_path / f"{name}_{phase}.sql") as sql_file:
+        with open(query_path / f"{phase}.sql") as sql_file:
             for query in sql_file:
                 result = postgres.get_plan(query)
                 execution_plan = result[0][0][0]['Plan']
@@ -42,15 +42,16 @@ def get_execution_plans(dataset, version, name, phases=['train', 'valid', 'test'
             
         query_plans[phase] = plans
 
-    dump_plans(dataset=dataset, version=version, name=name, query_plans=query_plans)
+    dump_plans(dataset=dataset, query_plans=query_plans)
 
 
-def dump_plans(dataset:str, version:str, name:str, query_plans:dict):
+def dump_plans(dataset:str, query_plans:dict):
 
-    query_path = DATA_ROOT / dataset / "workload"
+    plan_path = DATA_ROOT / dataset / "workload" / "plans"
+    plan_path.mkdir(exist_ok=True)
 
     for phase, plans in query_plans.items():
-        with open(query_path / f"{name}_plans_{phase}.json", "w") as json_file:
+        with open(plan_path / f"{phase}_plans.json", "w") as json_file:
             json.dump(plans, json_file)
 
 
@@ -58,7 +59,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='random')
     parser.add_argument('--version', default='original')
-    parser.add_argument('--name', default='base')
     args = parser.parse_args()
     return args
 
@@ -69,10 +69,9 @@ if __name__ == '__main__':
 
     dataset = args.dataset
     version = args.version
-    name = args.name
 
     phases = ['train', 'valid', 'test']
 
-    get_execution_plans(dataset, version, name, phases)
+    get_execution_plans(dataset, version, phases)
 
     

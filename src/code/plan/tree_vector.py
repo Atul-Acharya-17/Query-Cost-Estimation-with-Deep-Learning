@@ -328,25 +328,17 @@ def obtain_upper_bound_query_size(path):
         for plan in f.readlines():
             plan = json.loads(plan)
             plans.append(plan)
-            cost = [plan['cost']]
-            cardinality = [plan['cardinality']]
+            cost = plan['cost']
+            cardinality = plan['cardinality']
 
-            for seq in plan['seq']:
-                if seq == None:
-                    continue
-                if 'cardinality' in seq:
-                    cardinality.append(seq['cardinality'])
-                if 'cost' in seq:
-                    cost.append(seq['cost'])
-
-            if max(cost) > cost_label_max:
-                cost_label_max = max(cost)
-            elif min(cost) < cost_label_min:
-                cost_label_min = min(cost)
-            if max(cardinality) > card_label_max:
-                card_label_max = max(cardinality)
-            elif min(cardinality) < card_label_min:
-                card_label_min = min(cardinality)
+            if cost > cost_label_max:
+                cost_label_max = cost
+            elif cost < cost_label_min:
+                cost_label_min = cost
+            if cardinality > card_label_max:
+                card_label_max = cardinality
+            elif cardinality < card_label_min:
+                card_label_min = cardinality
             sequence = plan['seq']
             plan_node_num = len(sequence)
             if plan_node_num > plan_node_max_num:
@@ -432,7 +424,7 @@ if __name__ == '__main__':
     name = args.name
 
     if dataset == 'census13':
-        from ..data_preparation.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+        from ..dataset.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
 
 
     index_total_num = len(indexes_id)
@@ -446,11 +438,14 @@ if __name__ == '__main__':
 
     plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + "train_plans_encoded.json")
 
-    plans = []
-    with open(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + "train_plans_encoded.json") as f:
-        for idx, seq in enumerate(f.readlines()):
-            plan = json.loads(seq)
-            plans.append(plan)
+    phases = ['train', 'valid', 'test']
 
-    save_data_job(plans=plans, batch_size=64, phase='train', dataset='census13')
+    for phase in phases:
+        plans = []
+        with open(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{phase}_plans_encoded.json") as f:
+            for idx, seq in enumerate(f.readlines()):
+                plan = json.loads(seq)
+                plans.append(plan)
+
+        save_data_job(plans=plans, batch_size=64, phase=phase, dataset='census13')
 

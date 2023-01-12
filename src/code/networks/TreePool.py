@@ -4,6 +4,8 @@ import torch.nn as nn
 import time
 import torch.nn.functional as F
 
+from multiprocessing import Pool
+
 
 class TreePool(nn.Module):
     def __init__(self, op_dim, pred_dim , hidden_dim, hid_dim):
@@ -11,24 +13,21 @@ class TreePool(nn.Module):
         print(pred_dim)
         self.op_dim = op_dim
         self.pred_dim = pred_dim
-        self.hidden_dim = hidden_dim
-        self.hid_dim = hid_dim
+        self.lstm_hidden_dim = hidden_dim
+        self.mlp_hid_dim = hid_dim
 
-        self.operation_embed = nn.Linear(op_dim, op_dim)
-        self.predicate_embed = nn.Linear(pred_dim, pred_dim)
-        self.sample_bitmap_embed = nn.Linear(1000, hid_dim)
+        self.operation_embed = nn.Linear(self.op_dim, self.op_dim)
+        self.predicate_embed = nn.Linear(self.pred_dim, self.pred_dim)
+        self.sample_bitmap_embed = nn.Linear(1000, self.mlp_hid_dim)
 
-        print(op_dim + 2 * pred_dim + hid_dim )
+        self.lstm = nn.LSTM(self.op_dim + 2 * self.pred_dim + self.mlp_hid_dim, self.lstm_hidden_dim, batch_first=True)
 
-        self.lstm = nn.LSTM(op_dim + 2 * pred_dim + hid_dim, hidden_dim, batch_first=True)
-
-        self.hid_mlp2_task1 = nn.Linear(hidden_dim, hid_dim)
-        self.hid_mlp2_task2 = nn.Linear(hidden_dim, hid_dim)
-        self.batch_norm3 = nn.BatchNorm1d(hid_dim)
-        self.hid_mlp3_task1 = nn.Linear(hid_dim, hid_dim)
-        self.hid_mlp3_task2 = nn.Linear(hid_dim, hid_dim)
-        self.out_mlp2_task1 = nn.Linear(hid_dim, 1)
-        self.out_mlp2_task2 = nn.Linear(hid_dim, 1)
+        self.hid_mlp2_task1 = nn.Linear(self.lstm_hidden_dim, self.mlp_hid_dim)
+        self.hid_mlp2_task2 = nn.Linear(self.lstm_hidden_dim, self.mlp_hid_dim)
+        self.hid_mlp3_task1 = nn.Linear(self.mlp_hid_dim, self.mlp_hid_dim)
+        self.hid_mlp3_task2 = nn.Linear(self.mlp_hid_dim, self.mlp_hid_dim)
+        self.out_mlp2_task1 = nn.Linear(self.mlp_hid_dim, 1)
+        self.out_mlp2_task2 = nn.Linear(self.mlp_hid_dim, 1)
 
     def zeroes(self, dim):
         return torch.zeros(1, dim)
@@ -73,26 +72,31 @@ class TreePool(nn.Module):
         else:
             condition2_vector = self.pool(condition2_root) 
 
-        operation_vector = self.operation_embed(node.get_torch_operation_vector())
-        
-        sample_bitmap_vector = self.sample_bitmap_embed(node.get_torch_sample_bitmap_vector())
+        #operation_vector = self.operation_embed(node.get_torch_operation_vector())
+        operation_vector = node.get_torch_operation_vector()
+        sample_bitmap_vector = self.sample_bitmap_embed(node.get_torch_sample_bitmap_vector()) * node.has_cond
 
         if len(node.children) == 0:
-            left_hidden_state, left_cell_state = self.init_hidden(self.hidden_dim)
-            right_hidden_state, right_cell_state = self.init_hidden(self.hidden_dim)
+            left_hidden_state, left_cell_state = self.init_hidden(self.lstm_hidden_dim)
+            right_hidden_state, right_cell_state = self.init_hidden(self.lstm_hidden_dim)
 
         elif len(node.children) == 1:
             _, (left_hidden_state, left_cell_state) = self.tree_representation(node.children[0])
-            right_hidden_state, right_cell_state = self.init_hidden(self.hidden_dim)
+            right_hidden_state, right_cell_state = self.init_hidden(self.lstm_hidden_dim)
 
         else:
+            # with Pool() as mp_pool:
+            #     results = mp_pool.map(self.tree_representation, node.children)
+            #     _, (left_hidden_state, left_cell_state) = results[0]
+            #     _, (right_hidden_state, right_cell_state) = results[1]
             _, (left_hidden_state, left_cell_state) = self.tree_representation(node.children[0])
             _, (right_hidden_state, right_cell_state) = self.tree_representation(node.children[1])
 
+
         input_vector =  torch.cat((operation_vector, condition1_vector, condition2_vector, sample_bitmap_vector), 1)
-        # hidden_state = torch.cat((left_hidden_state, right_hidden_state), 2)
+
         hidden_state = (left_hidden_state + right_hidden_state) / 2
-        # cell_state = torch.cat((left_cell_state, right_cell_state), 2)
+
         cell_state = (left_cell_state + right_cell_state) / 2
         return self.lstm(input_vector.view(1, 1, -1), (hidden_state, cell_state))
 
@@ -102,19 +106,17 @@ class TreePool(nn.Module):
 
         output = hidden_state[0].view(1, -1)
 
-        out_task1 = F.relu(self.hid_mlp2_task1(output))
-        # out_task1 = self.batch_norm3(out_task1)
-        out_task1 = F.relu(self.hid_mlp3_task1(out_task1))
-        out_task1 = self.out_mlp2_task1(out_task1)
-        out_task1 = F.sigmoid(out_task1)
+        cost = F.relu(self.hid_mlp2_task1(output))
+        cost = F.relu(self.hid_mlp3_task1(cost))
+        cost = self.out_mlp2_task1(cost)
+        cost = F.sigmoid(cost)
         
-        out_task2 = F.relu(self.hid_mlp2_task2(output))
-        # out_task2 = self.batch_norm3(out_task2)
-        out_task2 = F.relu(self.hid_mlp3_task2(out_task2))
-        out_task2 = self.out_mlp2_task2(out_task2)
-        out_task2 = F.sigmoid(out_task2)
+        card = F.relu(self.hid_mlp2_task2(output))
+        card = F.relu(self.hid_mlp3_task2(card))
+        card = self.out_mlp2_task2(card)
+        card = F.sigmoid(card)
 
-        return out_task1, out_task2
+        return cost, card
 
         
         

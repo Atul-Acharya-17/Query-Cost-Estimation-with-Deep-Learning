@@ -201,15 +201,15 @@ def isSelected(row_value, predicate, dtype):
 def get_bitmap(root, dataset="random"):
 
     if dataset == "census":
-        from ..data_preparation.census13 import data, sample
+        from ..dataset.census13 import data, sample
     elif dataset == "forest":
-        from ..data_preparation.census13 import data, sample
+        from ..dataset.census13 import data, sample
     elif dataset == "power":
-        from ..data_preparation.census13 import data, sample
+        from ..dataset.census13 import data, sample
     elif dataset == "dmv":
-        from ..data_preparation.census13 import data, sample
+        from ..dataset.census13 import data, sample
     else:
-        from ..data_preparation.census13 import data, sample
+        from ..dataset.census13 import data, sample
 
     predicate = root.get_item()
     if predicate != None and predicate['op_type'] == 'Compare':

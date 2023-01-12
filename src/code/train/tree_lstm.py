@@ -1,4 +1,4 @@
-from ..models.TreeLSTM import TreeLSTM
+from ..networks.TreeLSTM import TreeLSTM
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -27,7 +27,7 @@ def qerror_loss(preds, targets, mini, maxi):
         for i in range(len(targets)):
             for j in range(len(targets[i])):
                 if preds[i][j] == 0 and targets[i][j] == 0:
-                    qerror.append((preds[i][j] + 1) / (targets[i][j] + 1))
+                    qerror.append(1)
                 elif preds[i][j] == 0:
                     qerror.append(targets[i][j])
                 elif targets[i][j] == 0:
@@ -41,7 +41,7 @@ def qerror_loss(preds, targets, mini, maxi):
     except Exception as e:
         for i in range(len(targets)):
             if preds[i] == 0 and targets[i] == 0:
-                qerror.append((preds[i] + 1) / (targets[i] + 1))
+                qerror.append(1)
             elif preds[i] == 0:
                 qerror.append(targets[i])
             elif targets[i] == 0:
@@ -50,10 +50,14 @@ def qerror_loss(preds, targets, mini, maxi):
                 qerror.append(preds[i]/targets[i])
             else:
                 qerror.append(targets[i]/preds[i])
+
+        # for x in qerror:
+        #     print(x)
+        # print(sum(qerror))
         return torch.mean(torch.cat(qerror)), torch.median(torch.cat(qerror)), torch.max(torch.cat(qerror)), torch.argmax(torch.cat(qerror))
 
 def get_batch_job(batch_id, phase, directory):
-    suffix = phase
+    suffix = phase + '_'
     target_cost_batch = np.load(directory+'/target_cost_'+suffix+str(batch_id)+'.np.npy')
     target_cardinality_batch = np.load(directory+'/target_cardinality_'+suffix+str(batch_id)+'.np.npy')
     operators_batch = np.load(directory+'/operators_'+suffix+str(batch_id)+'.np.npy')
@@ -94,8 +98,8 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
             estimate_cost, estimate_cardinality, estimate_intermediate_cost, estimate_intermediate_card = model(operatorss, extra_infoss, condition1ss, condition2ss, sampless, condition_maskss, mapping)
             target_cost = target_cost
             target_cardinality = target_cardinality
-            cost_loss,cost_loss_median,cost_loss_max,cost_max_idx = qerror_loss(estimate_intermediate_cost, intermediate_cost, cost_label_min, cost_label_max)
-            card_loss,card_loss_median,card_loss_max,card_max_idx = qerror_loss(estimate_intermediate_card, intermediate_card, card_label_min, card_label_max)
+            # cost_loss,cost_loss_median,cost_loss_max,cost_max_idx = qerror_loss(estimate_intermediate_cost, intermediate_cost, cost_label_min, cost_label_max)
+            # card_loss,card_loss_median,card_loss_max,card_max_idx = qerror_loss(estimate_intermediate_card, intermediate_card, card_label_min, card_label_max)
             # print (card_loss.item(),card_loss_median.item(),card_loss_max.item(),card_max_idx.item())
             # print (cost_loss.item(),cost_loss_median.item(),cost_loss_max.item(),cost_max_idx.item())
             cost_loss,cost_loss_median,cost_loss_max,cost_max_idx = qerror_loss(estimate_cost, target_cost, cost_label_min, cost_label_max)
@@ -177,9 +181,9 @@ if __name__ == '__main__':
     name = args.name
 
     if dataset == 'census13':
-        from ..data_preparation.census13 import columns_id, indexes_id, tables_id
+        from ..dataset.census13 import columns_id, indexes_id, tables_id
 
-    plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/" + name + "_plans_train_encoded.json")
+    plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + "train_plans_encoded.json")
 
     index_total_num = len(indexes_id)
     table_total_num = len(tables_id)
@@ -190,6 +194,6 @@ if __name__ == '__main__':
     condition_op_dim = bool_ops_total_num + compare_ops_total_num+column_total_num+1000
     condition_op_dim_pro = bool_ops_total_num + column_total_num + 3
 
-    directory = str(DATA_ROOT) + "/" + dataset + "/workload/"
+    directory = str(DATA_ROOT) + "/" + dataset + "/workload/seq_data/"
 
-    train(0, 10, 0, 0, 200, directory=directory)
+    train(0, 15, 0, 1, 200, directory=directory)

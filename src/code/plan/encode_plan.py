@@ -457,7 +457,7 @@ if __name__ == '__main__':
     name = args.name
 
     if dataset == 'census13':
-        from ..data_preparation.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column
+        from ..dataset.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column
 
 
     index_total_num = len(indexes_id)

@@ -18,7 +18,7 @@ def encode_predicate_tree(root, relation_name, index_name):
     comp_op_vector = [0 for _ in range(compare_ops_total_num)]
     left_value_vec = [0 for _ in range(column_total_num)]
 
-    right_value_vec = [0 for _ in range(column_total_num)]
+    right_value_vec = [0 for _ in range(max_string_dim)]
 
     if root.op_type == 'Bool':
         idx = bool_ops_id[root.operator]
@@ -174,6 +174,10 @@ def encode_node(node):
                 sample_vec = bitand(encode_sample(node['bitmap_index']), sample_vec)
                 ### Samples Ends
                 has_condition = 1
+        elif operator == 'Gather':
+            num_workers = node['workers_planned']
+            extra_info_vec[0] = num_workers
+
 
     cardinality = node['cardinality'] if 'cardinality' in node else 0
     cost = node['cost'] if 'cost' in node else 0
@@ -270,6 +274,8 @@ def save_data_job(plans, batch_size=BATCH_SIZE, phase='train', dataset='census13
     batch_id = 0
     directory=f'{DATA_ROOT}/{dataset}/workload/tree_data'
 
+    print(directory)
+
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -301,6 +307,9 @@ if __name__ == '__main__':
     if dataset == 'census13':
         from ..dataset.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
 
+    elif dataset == 'forest10':
+        from ..dataset.forest10 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+
 
     index_total_num = len(indexes_id)
     table_total_num = len(tables_id)
@@ -322,5 +331,5 @@ if __name__ == '__main__':
                 plan = json.loads(seq)
                 plans.append(plan)
 
-        save_data_job(plans=plans, batch_size=BATCH_SIZE, phase=phase, dataset='census13')
+        save_data_job(plans=plans, batch_size=BATCH_SIZE, phase=phase, dataset=dataset)
 

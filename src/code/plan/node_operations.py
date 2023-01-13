@@ -82,3 +82,12 @@ class Result(Node):
 
     def __str__(self):
         return 'Result'
+
+class Gather(Node):
+    def __init__(self, workers_planned, cardinality=None, cost=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost)
+        self.node_type = 'Gather'
+        self.workers_planned = workers_planned
+
+    def __str__(self):
+        return 'Gather' + ' with ' + str(self.workers_planned) + ' workers'

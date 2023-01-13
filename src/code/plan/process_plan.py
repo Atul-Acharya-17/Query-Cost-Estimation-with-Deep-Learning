@@ -40,6 +40,7 @@ def encode_plan(input_path, out_path, dataset):
             plans = json.load(f)
             for index, plan in enumerate(plans):
                 alias2table = {}
+                # print(plan)
                 get_alias2table(plan, alias2table)
                 root, cost, cardinality = get_plan(plan)
                 seq, _ = convert_plan_to_sequence(root, alias2table)

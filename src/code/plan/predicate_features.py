@@ -72,6 +72,8 @@ def pre2seq(predicates, alias2table, relation_name, index_name, is_join_conditio
     p = pypred.Predicate(pr)
     try:
         predicates = convert_predicate2sequence(p.description().strip('\n').split('\n'), alias2table, relation_name, index_name, is_join_condition)
-    except:
+    except Exception as e:
+        # print(e)
+        # # exit()
         raise
     return predicates

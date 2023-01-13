@@ -4,7 +4,13 @@ import json
 
 import psycopg2
 
-from ..constants import DATA_ROOT, DATABASE_URL
+from ..constants import DATA_ROOT, DATABASE_URL, NUM_TRAIN, NUM_VAL, NUM_TEST
+
+count = {
+    "train": NUM_TRAIN,
+    "valid": NUM_VAL,
+    "test": NUM_TEST
+}
 
 
 class Postgres():
@@ -35,11 +41,12 @@ def get_execution_plans(dataset, version, phases=['train', 'valid', 'test']):
     for phase in phases:
         plans = []
         with open(query_path / f"{phase}.sql") as sql_file:
-            for query in sql_file:
+            for index, query in enumerate(sql_file):
                 result = postgres.get_plan(query)
                 execution_plan = result[0][0][0]['Plan']
                 plans.append(execution_plan)
-            
+                print(f"{phase} {index+1} / {count[phase]}", end='\r')
+        print()
         query_plans[phase] = plans
 
     dump_plans(dataset=dataset, query_plans=query_plans)

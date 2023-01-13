@@ -92,6 +92,9 @@ def encode_node(node, alias2table):
             return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), condition_seq_index
         else:
             return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
+
+    elif node['Node Type'] == 'Gather':
+        return Gather(node['Workers Planned'], cardinality=cardinality, cost=cost), None
     else:
         raise Exception('Unsupported Node Type: '+node['Node Type'])
         return None, None

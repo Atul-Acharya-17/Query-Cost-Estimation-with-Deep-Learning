@@ -198,18 +198,7 @@ def isSelected(row_value, predicate, dtype):
     return True
 
 
-def get_bitmap(root, dataset="random"):
-
-    if dataset == "census":
-        from ..dataset.census13 import data, sample
-    elif dataset == "forest":
-        from ..dataset.census13 import data, sample
-    elif dataset == "power":
-        from ..dataset.census13 import data, sample
-    elif dataset == "dmv":
-        from ..dataset.census13 import data, sample
-    else:
-        from ..dataset.census13 import data, sample
+def retrieve_bit_map(root, data, sample):
 
     predicate = root.get_item()
     if predicate != None and predicate['op_type'] == 'Compare':
@@ -241,11 +230,11 @@ def get_bitmap(root, dataset="random"):
         bitmap = []
         if predicate['operator'] == 'AND':
             for child in root.get_children():
-                vec = get_bitmap(child)
+                vec = retrieve_bit_map(child, data, sample)
                 bitmap = bitand(bitmap, vec)
         elif predicate['operator'] == 'OR':
             for child in root.get_children():
-                vec = get_bitmap(child)
+                vec = retrieve_bit_map(child, data, sample)
                 bitmap = bitor(bitmap, vec)
         else:
             print (predicate['operator'])
@@ -253,3 +242,18 @@ def get_bitmap(root, dataset="random"):
         return bitmap
     else:
         return []
+
+def get_bitmap(root, dataset):
+    
+    if dataset == "census13":
+        from ..dataset.census13 import data, sample
+    elif dataset == "forest10":
+        from ..dataset.forest10 import data, sample
+    elif dataset == "power7":
+        from ..dataset.power7 import data, sample
+    elif dataset == "dmv11":
+        from ..dataset.dmv11 import data, sample
+    else:
+        from ..dataset.census13 import data, sample
+
+    return retrieve_bit_map(root, data, sample)

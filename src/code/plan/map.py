@@ -13,7 +13,8 @@ physic_ops_id = {
     'Seq Scan':12, 
     'Bitmap Heap Scan':13, 
     'Index Scan':14, 
-    'BitmapOr':15
+    'BitmapOr':15,
+    'Gather': 16
 }
 
 strategy_id = {

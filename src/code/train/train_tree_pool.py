@@ -124,6 +124,9 @@ if __name__ == '__main__':
     if dataset == 'census13':
         from ..dataset.census13 import columns_id, indexes_id, tables_id, max_string_dim
 
+    elif dataset == 'forest10':
+        from ..dataset.forest10 import columns_id, indexes_id, tables_id, max_string_dim
+
     plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + "train_plans_encoded.json")
 
     index_total_num = len(indexes_id)

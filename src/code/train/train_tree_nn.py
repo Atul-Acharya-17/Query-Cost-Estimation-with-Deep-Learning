@@ -11,7 +11,7 @@ from .loss_fn import q_error
 from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id
 from ..constants import DATA_ROOT, NUM_TRAIN, NUM_VAL, NUM_TEST, BATCH_SIZE
 from ..plan.utils import obtain_upper_bound_query_size
-from ..networks.tree_pool import TreePool
+from ..networks.tree_network import TreeNetwork
 from .helpers import get_batch_job_tree
 
 
@@ -26,7 +26,7 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
 
     hidden_dim = 128
     mlp_hid_dim = 256
-    model = TreePool(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, hidden_dim, mlp_hid_dim)
+    model = TreeNetwork(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     for epoch in range(num_epochs):
@@ -112,6 +112,7 @@ def parse_args():
     parser.add_argument('--dataset', default='random')
     parser.add_argument('--version', default='original')
     parser.add_argument('--name', default='base')
+    parser.add_argument('--embedding-type', default='tree_pool')
     args = parser.parse_args()
     return args
 
@@ -120,6 +121,12 @@ if __name__ == '__main__':
     dataset = args.dataset
     version = args.version
     name = args.name
+
+    embedding_type = args.embedding_type
+
+    if embedding_type not in ['tree_pool', 'lstm']:
+        print('Invalid embedding type')
+        raise
 
     if dataset == 'census13':
         from ..dataset.census13 import columns_id, indexes_id, tables_id, max_string_dim
@@ -135,7 +142,7 @@ if __name__ == '__main__':
     physic_op_total_num = len(physic_ops_id)
     compare_ops_total_num = len(compare_ops_id)
     bool_ops_total_num = len(bool_ops_id)
-    condition_op_dim = bool_ops_total_num + compare_ops_total_num + column_total_num
+    condition_op_dim = bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim
     condition_op_dim_pro = bool_ops_total_num + column_total_num + 3
 
     directory = str(DATA_ROOT) + "/" + dataset + "/workload/tree_data/"

@@ -63,3 +63,10 @@ class PlanNodeVector():
 
     def get_torch_sample_bitmap_vector(self):
         return torch.unsqueeze(torch.FloatTensor(self.sample_vec), 0)
+
+    def get_condition1_vector(self):
+        return torch.unsqueeze(torch.FloatTensor(self.condition1_root), 0)
+
+    def get_condition2_vector(self):
+        return torch.unsqueeze(torch.FloatTensor(self.condition2_root), 0)
+

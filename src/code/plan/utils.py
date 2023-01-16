@@ -57,7 +57,7 @@ def todict(obj, classkey=None):
         return obj
 
 def encode_sample(sample:str):
-    return [int(i) for i in sample]
+    return [float(i) for i in sample]
 
 def bitand_numpy(sample1, sample2):
     return np.minimum(sample1, sample2)

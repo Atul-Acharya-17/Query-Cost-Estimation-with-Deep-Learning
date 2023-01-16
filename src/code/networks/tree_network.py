@@ -5,11 +5,11 @@ import torch.nn.functional as F
 from multiprocessing import Pool
 
 
-class TreePool(nn.Module):
+class TreeNetwork(nn.Module):
 
-    def __init__(self, op_dim, pred_dim , hidden_dim, hid_dim):
+    def __init__(self, op_dim, pred_dim , hidden_dim, hid_dim, embedding_type='tree_pool'):
 
-        super(TreePool, self).__init__()
+        super(TreeNetwork, self).__init__()
         self.op_dim = op_dim
         self.pred_dim = pred_dim
         self.lstm_hidden_dim = hidden_dim
@@ -19,7 +19,13 @@ class TreePool(nn.Module):
         self.predicate_embed = nn.Linear(self.pred_dim, self.pred_dim)
         self.sample_bitmap_embed = nn.Linear(1000, self.mlp_hid_dim)
 
-        self.lstm = nn.LSTM(self.op_dim + 2 * self.pred_dim + self.mlp_hid_dim, self.lstm_hidden_dim, batch_first=True)
+        self.lstm_embed = nn.LSTM(pred_dim, hidden_dim, batch_first=True)
+
+        if embedding_type == 'tree_pool':
+            self.lstm = nn.LSTM(self.op_dim + 2 * self.pred_dim + self.mlp_hid_dim, self.lstm_hidden_dim, batch_first=True)
+
+        else:
+            self.lstm = nn.LSTM(self.op_dim + 2 * self.lstm_hidden_dim + self.mlp_hid_dim, self.lstm_hidden_dim, batch_first=True)
 
         self.hid_mlp2_task1 = nn.Linear(self.lstm_hidden_dim, self.mlp_hid_dim)
         self.hid_mlp2_task2 = nn.Linear(self.lstm_hidden_dim, self.mlp_hid_dim)
@@ -27,6 +33,8 @@ class TreePool(nn.Module):
         self.hid_mlp3_task2 = nn.Linear(self.mlp_hid_dim, self.mlp_hid_dim)
         self.out_mlp2_task1 = nn.Linear(self.mlp_hid_dim, 1)
         self.out_mlp2_task2 = nn.Linear(self.mlp_hid_dim, 1)
+
+        self.embedding_type = embedding_type
 
     def zeroes(self, dim):
         return torch.zeros(1, dim)
@@ -53,21 +61,39 @@ class TreePool(nn.Module):
         if condition_root.op_type == "Compare":
             return self.predicate_embed(condition_root.get_torch_tensor())
 
+
     def tree_representation(self, node):
 
-        condition1_root = node.condition1_root
-
-        if condition1_root is None:
-            condition1_vector = self.zeroes(self.pred_dim)
+        if self.embedding_type == 'tree_pool':
+            condition1_root = node.condition1_root
+            condition2_root = node.condition2_root
+        
         else:
-            condition1_vector = self.pool(condition1_root)
+            condition1_root = node.get_condition1_vector()
+            condition2_root = node.get_condition2_vector()
 
-        condition2_root = node.condition2_root
 
-        if condition2_root is None:
-            condition2_vector = self.zeroes(self.pred_dim)
+        if self.embedding_type == 'tree_pool':
+            if condition1_root is None:
+                condition1_vector = self.zeroes(self.pred_dim)
+            else:
+                condition1_vector = self.pool(condition1_root)
+
+
+            if condition2_root is None:
+                condition2_vector = self.zeroes(self.pred_dim)
+            else:
+                condition2_vector = self.pool(condition2_root) 
+
         else:
-            condition2_vector = self.pool(condition2_root) 
+            hidden1, cell1 = self.init_hidden(hidden_dim=self.lstm_hidden_dim)
+            _, (cond1_hid, cond1_cell) = self.lstm_embed(condition1_root, (hidden1, cell1))
+
+            hidden2, cell2 = self.init_hidden(hidden_dim=self.lstm_hidden_dim)
+            _, (cond2_hid, cond2_cell) = self.lstm_embed(condition2_root, (hidden2, cell2))
+                        
+            condition1_vector = cond1_hid[0].view(1,-1)
+            condition2_vector = cond2_hid[0].view(1,-1)
 
         operation_vector = self.operation_embed(node.get_torch_operation_vector())
         sample_bitmap_vector = self.sample_bitmap_embed(node.get_torch_sample_bitmap_vector()) * node.has_cond
@@ -89,7 +115,11 @@ class TreePool(nn.Module):
             _, (right_hidden_state, right_cell_state) = self.tree_representation(node.children[1])
 
 
-        input_vector =  torch.cat((operation_vector, condition1_vector, condition2_vector, sample_bitmap_vector), 1)
+        # print(operation_vector.shape)
+        # print(condition1_vector.shape)
+        # print(condition2_vector.shape)
+        # print(sample_bitmap_vector.shape)
+        input_vector = torch.cat((operation_vector, condition1_vector, condition2_vector, sample_bitmap_vector), 1)
 
         hidden_state = (left_hidden_state + right_hidden_state) / 2
 

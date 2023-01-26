@@ -75,6 +75,8 @@ def normalize_label(labels, mini, maxi):
 def unnormalize(vecs, mini, maxi):
     return (vecs * (maxi - mini) + mini)
 
+
+
 def obtain_upper_bound_query_size(path):
     plan_node_max_num = 0
     condition_max_num = 0
@@ -90,6 +92,7 @@ def obtain_upper_bound_query_size(path):
             cost = plan['cost']
             cardinality = plan['cardinality']
 
+
             if cost > cost_label_max:
                 cost_label_max = cost
             elif cost < cost_label_min:
@@ -98,6 +101,58 @@ def obtain_upper_bound_query_size(path):
                 card_label_max = cardinality
             elif cardinality < card_label_min:
                 card_label_min = cardinality
+
+            sequence = plan['seq']
+            plan_node_num = len(sequence)
+            if plan_node_num > plan_node_max_num:
+                plan_node_max_num = plan_node_num
+            for node in sequence:
+                if node == None:
+                    continue
+                if 'condition_filter' in node:
+                    condition_num = len(node['condition_filter'])
+                    if condition_num > condition_max_num:
+                        condition_max_num = condition_num
+                if 'condition_index' in node:
+                    condition_num = len(node['condition_index'])
+                    if condition_num > condition_max_num:
+                        condition_max_num = condition_num
+
+    return plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max
+
+
+def obtain_upper_bound_query_size_intermediate(path):
+    plan_node_max_num = 0
+    condition_max_num = 0
+    cost_label_max = 0.0
+    cost_label_min = 9999999999.0
+    card_label_max = 0.0
+    card_label_min = 9999999999.0
+    plans = []
+    with open(path, 'r') as f:
+        for plan in f.readlines():
+            plan = json.loads(plan)
+            plans.append(plan)
+            cost = [plan['cost']]
+            cardinality = [plan['cardinality']]
+
+            for seq in plan['seq']:
+                if seq == None:
+                    continue
+                if 'cardinality' in seq:
+                    cardinality.append(seq['cardinality'])
+                if 'cost' in seq:
+                    cost.append(seq['cost'])
+
+            if max(cost) > cost_label_max:
+                cost_label_max = max(cost)
+            elif min(cost) < cost_label_min:
+                cost_label_min = min(cost)
+            if max(cardinality) > card_label_max:
+                card_label_max = max(cardinality)
+            elif min(cardinality) < card_label_min:
+                card_label_min = min(cardinality)
+
             sequence = plan['seq']
             plan_node_num = len(sequence)
             if plan_node_num > plan_node_max_num:

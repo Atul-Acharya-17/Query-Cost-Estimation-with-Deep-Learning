@@ -10,7 +10,7 @@ data["dmv11_original"] = pd.read_csv(f"{DATA_ROOT}/dmv11/original.csv")
 
 
 columns = {
-    col: idx for idx, col in enumerate(data["dmv11_original"].columns)
+    col.lower(): idx for idx, col in enumerate(data["dmv11_original"].columns)
 }
 
 data["dmv11_original"].columns = columns
@@ -36,7 +36,7 @@ for idx, table in enumerate(tables):
         columns_id[f"{table}.{column}"] = id + 1
 
 
-str_columns = ['rcord_type', 'registration_class', 'state', 'county', 'body_type', 'fuel_type', 'color', 'scofflaw_indicator', 'suspension_indicator', 'revocation_indicator']
+str_columns = ['record_type', 'registration_class', 'state', 'county', 'body_type', 'fuel_type', 'color', 'scofflaw_indicator', 'suspension_indicator', 'revocation_indicator']
 
 
 one_hot_encoding = {

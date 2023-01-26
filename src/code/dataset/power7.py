@@ -10,7 +10,7 @@ data["power7_original"] = pd.read_csv(f"{DATA_ROOT}/power7/original.csv")
 
 
 columns = {
-    col: idx for idx, col in enumerate(data["power7_original"].columns)
+    col.lower(): idx for idx, col in enumerate(data["power7_original"].columns)
 }
 
 data["power7_original"].columns = columns

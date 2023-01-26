@@ -40,7 +40,6 @@ def encode_plan(input_path, out_path, dataset):
             plans = json.load(f)
             for index, plan in enumerate(plans):
                 alias2table = {}
-                # print(plan)
                 get_alias2table(plan, alias2table)
                 root, cost, cardinality = get_plan(plan)
                 seq, _ = convert_plan_to_sequence(root, alias2table)
@@ -98,7 +97,12 @@ if __name__ == '__main__':
     dataset = args.dataset
     version = args.version
 
-    for phase in ['train', 'valid', 'test']:
+    phases = ['train', 'valid', 'test']
+
+    if dataset == 'imdb':
+        phases = ['job-train', 'job-light', 'synthetic', 'scale']
+
+    for phase in phases:
         input_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans.json")
         output_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans_encoded.json")
 

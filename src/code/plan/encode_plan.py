@@ -7,7 +7,7 @@ import os
 import pickle
 
 from ..constants import DATA_ROOT, BATCH_SIZE
-from .utils import encode_sample, bitand, normalize_label, obtain_upper_bound_query_size, class2json
+from .utils import encode_sample, bitand, normalize_label, obtain_upper_bound_query_size, obtain_upper_bound_query_size_intermediate
 from .map import physic_ops_id, compare_ops_id, bool_ops_id
 from .entities import PredicateNode, PredicateNodeVector, PlanNodeVector
 
@@ -147,7 +147,7 @@ def encode_predicate_tree(root, relation_name, index_name):
 
 
 def encode_condition_operation(condition_op, relation_name, index_name):
-        # bool_operator + left_value + compare_operator + right_value
+    # bool_operator + left_value + compare_operator + right_value
     if condition_op == None:
         vec = [0 for _ in range(condition_op_dim)]
     elif condition_op['op_type'] == 'Bool':
@@ -342,6 +342,8 @@ def plan_seq_2_tree_vec(seq, idx, use_tree=True):
     while idx < len(seq):
         
         operator, extra_info, condition1, condition2, sample, condition_mask, cost, cardinality = encode_node(seq[idx], use_tree=use_tree)
+        cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
+        cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
         node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality)
 
         left_child, next_idx = plan_seq_2_tree_vec(seq, idx + 1, use_tree=use_tree)
@@ -415,6 +417,8 @@ def parse_args():
     parser.add_argument('--name', default='base')
     parser.add_argument('--tree', action='store_true')
     parser.add_argument('--no-tree', dest='tree', action='store_false')
+    parser.add_argument('--intermediate', action='store_true')
+    parser.add_argument('--no-intermediate', dest='intermediate')
     args = parser.parse_args()
     return args
 
@@ -425,12 +429,22 @@ if __name__ == '__main__':
     name = args.name
 
     use_tree = args.tree
+    process_intermediate = args.intermediate
 
     if dataset == 'census13':
         from ..dataset.census13 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
 
     elif dataset == 'forest10':
         from ..dataset.forest10 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+
+    elif dataset == 'power7':
+        from ..dataset.power7 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+
+    elif dataset == 'dmv11':
+        from ..dataset.dmv11 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+
+    elif dataset == 'imdb':
+        from ..dataset.imdb import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
 
 
     index_total_num = len(indexes_id)
@@ -442,9 +456,21 @@ if __name__ == '__main__':
     condition_op_dim = bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim
     condition_op_dim_pro = bool_ops_total_num + column_total_num + 3
 
-    plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + "train_plans_encoded.json")
+    train_path = "train"
+
+    if dataset == "imdb":
+        train_path = "job-train"
+
+    if process_intermediate:
+        plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_intermediate(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_plans_encoded.json")
+
+    else:
+        plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_plans_encoded.json")
 
     phases = ['train', 'valid', 'test']
+
+    if dataset == 'imdb':
+        phases = ['job-train', 'job-light', 'synthetic', 'scale']
 
     for phase in phases:
         plans = []

@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import torch
 from dotenv import load_dotenv
 
 
@@ -20,5 +19,6 @@ JOB_TRAIN = 100000
 JOB_LIGHT = 70
 SCALE = 500
 SYNTHETIC = 5000
+SYNTHETIC_500 = 500
 
 BATCH_SIZE = 64

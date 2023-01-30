@@ -7,12 +7,11 @@ import matplotlib.pyplot as plt
 from .constants import DATA_ROOT
 from .train.loss_fn import q_error
 
-
 def plot_linreg(data, actual, pred):
-    plt.scatter(data, actual, color="black")
-    plt.plot(data, pred, color="blue", linewidth=3)
-    plt.xticks(())
-    plt.yticks(())
+    plt.scatter(data, actual, color="#242424", s=5)
+    plt.scatter(data, pred, color="blue", s=1)
+    plt.xlabel("Total Cost")
+    plt.ylabel("Total Time (ms)")
     plt.show()
 
 
@@ -22,7 +21,7 @@ def evaluate_postgres_card(file_path):
     with open(file_path, 'r') as f:
         plans = json.load(f)
         for index, plan in enumerate(plans):
-            print(f"{index}/{len(plans)}" ,end='\r')
+            print(f"{index+1}/{len(plans)}" ,end='\r')
 
             # estimated_cost = plan['Total Cost']
             # actual_cost = plan['Actual Total Time']
@@ -39,7 +38,7 @@ def evaluate_postgres_card(file_path):
     return card_losses
 
 
-def evaluate_postgres_cost(train_path, test_path):
+def evaluate_postgres_cost_reg(train_path, test_path):
     model = LinearRegression()
     cost_losses = []
     with open(train_path, 'r') as f:
@@ -86,11 +85,40 @@ def evaluate_postgres_cost(train_path, test_path):
 
     return cost_losses
 
+def evaluate_postgres_cost_calib(file_path):
+    cost_losses = []
+    
+    preds = []
+    actual = []
+
+    # model = LinearRegression()
+    
+    with open(file_path, 'r') as f:
+        plans = json.load(f)
+        for index, plan in enumerate(plans):
+            print(f"{index+1}/{len(plans)}" ,end='\r')
+
+            estimated_cost = plan['Total Cost']
+            actual_cost = plan['Actual Total Time']
+
+            cost_error = q_error(estimated_cost, actual_cost)
+
+            cost_losses.append(cost_error)
+            
+            preds.append(estimated_cost)
+            actual.append(actual_cost)
+            
+    # model.fit([[pred] for pred in preds], [[act]for act in actual])
+    # preds = model.predict([[pred] for pred in preds])
+    plot_linreg(actual, actual, preds)
+    
+    return cost_losses
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='census13')
-    parser.add_argument('--phase', default='test')
+    parser.add_argument('--train-file', default='train_plans.json')
+    parser.add_argument('--test-file', default='test_plans.json')
     args = parser.parse_args()
     return args
 
@@ -99,15 +127,17 @@ if __name__ == '__main__':
     args = parse_args()
 
     dataset = args.dataset
-    phase = args.phase
+    
+    train_file = args.train_file
+    test_file = args.test_file
 
-    file_path = f"{DATA_ROOT}/{dataset}/workload/plans/{phase}_plans.json"
+    file_path = f"{DATA_ROOT}/{dataset}/workload/plans/{test_file}"
 
     card_losses = evaluate_postgres_card(file_path)
 
-    train_path = f"{DATA_ROOT}/{dataset}/workload/plans/train_plans.json"
-    test_path = f"{DATA_ROOT}/{dataset}/workload/plans/{phase}_plans.json"
-    cost_losses = evaluate_postgres_cost(train_path, test_path)
+    train_path = f"{DATA_ROOT}/{dataset}/workload/plans/{train_file}"
+    test_path = f"{DATA_ROOT}/{dataset}/workload/plans/{test_file}"
+    cost_losses = evaluate_postgres_cost_calib(test_path)
 
     cost_metrics = {
         'max': np.max(cost_losses),
@@ -129,3 +159,4 @@ if __name__ == '__main__':
 
 
     print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}")
+    

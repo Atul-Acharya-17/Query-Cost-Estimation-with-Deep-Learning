@@ -267,6 +267,7 @@ def encode_condition(condition, relation_name, index_name, use_tree=True):
 def encode_node(node, use_tree):
     # operator + first_condition + second_condition + relation
     extra_info_num = max(column_total_num, table_total_num, index_total_num)
+    #extra_info_num = column_total_num + table_total_num + index_total_num
     operator_vec = [0 for _ in range(physic_op_total_num)]
     
     extra_info_vec = [0 for _ in range(extra_info_num)]

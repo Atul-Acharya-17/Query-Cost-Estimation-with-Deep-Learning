@@ -1,6 +1,7 @@
 import argparse
-import pickle
+import pandas as pd
 import numpy as np
+import time
 
 import torch
 from torch.autograd import Variable
@@ -29,7 +30,7 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
 
     hidden_dim = 128
     mlp_hid_dim = 256
-    model = TreeNN(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+    model = TreeLSTM(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(num_epochs):
@@ -75,7 +76,7 @@ def train(train_start, train_end, validate_start, validate_end, num_epochs, dire
         print("Epoch {}, training cost loss: {}, training card loss: {}".format(epoch, cost_loss_total/num_samples, card_loss_total/num_samples))
 
         if val:
-            valid_cost_losses, valid_card_losses = validate(model, validate_start, validate_end, directory, phase='valid')
+            valid_cost_losses, valid_card_losses, _ = validate(model, validate_start, validate_end, directory, phase='valid')
             avg_cost_loss = sum(valid_cost_losses) / len(valid_cost_losses)
             avg_card_loss = sum(valid_card_losses) / len(valid_card_losses)
 
@@ -88,6 +89,8 @@ def validate(model, start_idx, end_idx, directory, phase='valid'):
 
     cost_losses = []
     card_losses = []
+    
+    inference_times = []
 
     for batch_idx in range(start_idx, end_idx + 1):
         input_batch, target_cost, target_cardinality = get_batch_job_tree(batch_idx, phase=phase, directory=directory)
@@ -97,8 +100,10 @@ def validate(model, start_idx, end_idx, directory, phase='valid'):
             plan = input_batch[idx]
             cost = target_cost[idx]
             card = target_cardinality[idx]
-
+            
+            start_time = time.time()
             estimate_cost, estimate_cardinality = model(plan)
+            end_time = time.time()
             target_cost = target_cost
             target_cardinality = target_cardinality
 
@@ -107,8 +112,10 @@ def validate(model, start_idx, end_idx, directory, phase='valid'):
             
             cost_losses.append(cost_loss.item())
             card_losses.append(card_loss.item())
+            
+            inference_times.append(end_time - start_time)
 
-    return cost_losses, card_losses
+    return cost_losses, card_losses, inference_times
 
 
 def parse_args():
@@ -122,7 +129,7 @@ def parse_args():
 
 
 def val_and_print(model, test_end, directory, phase):
-    cost_losses, card_losses = validate(model, 0, test_end, directory, phase)
+    cost_losses, card_losses, inference_times = validate(model, 0, test_end, directory, phase)
 
     cost_metrics = {
         'max': np.max(cost_losses),
@@ -141,9 +148,22 @@ def val_and_print(model, test_end, directory, phase):
         'median': np.median(card_losses),
         'mean': np.mean(card_losses),
     }
+    
+    time_metrics = {
+        'max': np.max(inference_times),
+        '99th': np.percentile(inference_times, 99),
+        '95th': np.percentile(inference_times, 95),
+        '90th': np.percentile(inference_times, 90),
+        'median': np.median(inference_times),
+        'mean': np.mean(inference_times),        
+    }
 
 
-    print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}")
+    print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}, \nInference Time metrics: {time_metrics}")
+    
+    stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times)), columns=['cost_errors', 'card_errors', 'inference_time'])
+    stats_df.to_csv(str(DATA_ROOT) + "/" + dataset + "results_tree_lstm.csv")
+    
 
 if __name__ == '__main__':
     args = parse_args()
@@ -212,7 +232,7 @@ if __name__ == '__main__':
     
 
     if dataset != "imdb":
-        epochs = 50
+        epochs = 1
 
         model = train(0, train_end, 0, valid_end, epochs, directory=directory)
 

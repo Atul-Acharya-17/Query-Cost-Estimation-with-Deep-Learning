@@ -9,11 +9,17 @@ from .train.loss_fn import q_error
 
 def plot_linreg(data, actual, pred):
     plt.scatter(data, actual, color="#242424", s=5)
-    plt.scatter(data, pred, color="blue", s=1)
+    plt.plot(data, pred, color="blue")
     plt.xlabel("Total Cost")
     plt.ylabel("Total Time (ms)")
     plt.show()
 
+def plot_errors(actual, pred):
+    plt.scatter(actual, pred, color="#242424", s=5)
+    plt.scatter(actual, actual, color="blue", s=5)
+    plt.xlabel("Total Cost")
+    plt.ylabel("Total Time (ms)")
+    plt.show()    
 
 def evaluate_postgres_card(file_path):
     card_losses = []
@@ -110,7 +116,7 @@ def evaluate_postgres_cost_calib(file_path):
             
     # model.fit([[pred] for pred in preds], [[act]for act in actual])
     # preds = model.predict([[pred] for pred in preds])
-    plot_linreg(actual, actual, preds)
+    plot_errors(actual, preds)
     
     return cost_losses
 
@@ -137,7 +143,7 @@ if __name__ == '__main__':
 
     train_path = f"{DATA_ROOT}/{dataset}/workload/plans/{train_file}"
     test_path = f"{DATA_ROOT}/{dataset}/workload/plans/{test_file}"
-    cost_losses = evaluate_postgres_cost_calib(test_path)
+    cost_losses = evaluate_postgres_cost_reg(train_path, test_path)
 
     cost_metrics = {
         'max': np.max(cost_losses),
@@ -160,3 +166,31 @@ if __name__ == '__main__':
 
     print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}")
     
+    cost_losses = evaluate_postgres_cost_calib(train_path)
+
+    cost_metrics = {
+        'max': np.max(cost_losses),
+        '99th': np.percentile(cost_losses, 99),
+        '95th': np.percentile(cost_losses, 95),
+        '90th': np.percentile(cost_losses, 90),
+        'median': np.median(cost_losses),
+        'mean': np.mean(cost_losses),
+    }
+    
+    print('Synthetic:')
+    print(cost_metrics)
+    
+    cost_losses = evaluate_postgres_cost_calib(test_path)
+
+    cost_metrics = {
+        'max': np.max(cost_losses),
+        '99th': np.percentile(cost_losses, 99),
+        '95th': np.percentile(cost_losses, 95),
+        '90th': np.percentile(cost_losses, 90),
+        'median': np.median(cost_losses),
+        'mean': np.mean(cost_losses),
+    }
+    
+    print('JOB-light')
+    print(cost_metrics)
+

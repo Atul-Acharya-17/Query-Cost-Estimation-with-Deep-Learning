@@ -65,7 +65,7 @@ def get_execution_plans(dataset, phases=['train', 'valid', 'test'], calibrate=Fa
                 result = postgres.get_plan(query)
                 execution_plan = result[0][0][0]['Plan']
                 plans.append(execution_plan)
-                print(f"{phase} {index+1} / {count[phase]}", end='\r')
+                print(f"{phase} {index+1} / {len(sql_file)}", end='\r')
         print()
         query_plans[phase] = plans
 

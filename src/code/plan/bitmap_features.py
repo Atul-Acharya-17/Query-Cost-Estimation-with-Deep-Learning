@@ -3,6 +3,10 @@ import re
 
 from ..constants import SAMPLE_NUM
 
+data = None
+sample = None
+ready = False
+
 class TreeNode(object):
     def __init__(self, current_vec, parent):
         self.item = current_vec
@@ -243,7 +247,7 @@ def retrieve_bit_map(root, data, sample):
     else:
         return []
 
-def get_bitmap(root, dataset):
+def get_bitmap(root, dataset, data=None, sample=None):
     
     if dataset == "census13":
         from ..dataset.census13 import data, sample
@@ -253,6 +257,9 @@ def get_bitmap(root, dataset):
         from ..dataset.power7 import data, sample
     elif dataset == "dmv11":
         from ..dataset.dmv11 import data, sample
+    elif dataset == "imdb":
+        data = data
+        sample = sample
     else:
         from ..dataset.census13 import data, sample
 

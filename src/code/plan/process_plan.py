@@ -34,7 +34,7 @@ def get_alias2table(root, alias2table):
             get_alias2table(child, alias2table)
 
 
-def encode_plan(input_path, out_path, dataset):
+def encode_plan(input_path, out_path, dataset, data=None, samples=None):
     with open(out_path, 'w') as out:
         with open(input_path) as f:
             plans = json.load(f)
@@ -56,21 +56,21 @@ def encode_plan(input_path, out_path, dataset):
                             root = TreeNode(predicates[0], None)
                             if len(predicates) > 1:
                                 recover_tree(predicates[1:], root)
-                            bitmap_other = get_bitmap(root, dataset)
+                            bitmap_other = get_bitmap(root, dataset, data=data, sample=samples)
                     if node != None and 'condition_filter' in node:
                         predicates = node['condition_filter']
                         if len(predicates) > 0:
                             root = TreeNode(predicates[0], None)
                             if len(predicates) > 1:
                                 recover_tree(predicates[1:], root)
-                            bitmap_filter = get_bitmap(root, dataset)
+                            bitmap_filter = get_bitmap(root, dataset, data=data, sample=samples)
                     if node != None and 'condition_index' in node:
                         predicates = node['condition_index']
                         if len(predicates) > 0:
                             root = TreeNode(predicates[0], None)
                             if len(predicates) > 1:
                                 recover_tree(predicates[1:], root)
-                            bitmap_index = get_bitmap(root, dataset)
+                            bitmap_index = get_bitmap(root, dataset, data=data, sample=samples)
                     if len(bitmap_filter) > 0 or len(bitmap_index) > 0 or len(bitmap_other) > 0:
                         bitmap = [1 for _ in range(SAMPLE_NUM)]
                         bitmap = bitand(bitmap, bitmap_filter)
@@ -100,10 +100,21 @@ if __name__ == '__main__':
     phases = ['train', 'valid', 'test']
 
     if dataset == 'imdb':
-        phases = ['job-train', 'job-light', 'synthetic', 'scale']
+        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_500', 'train_plan_1000', 'train_plan_2000', 'train_plan_5000', 'train_plan_10000', 'train_plan_20000', 'train_plan_50000', 'train_plan_100000']
 
-    for phase in phases:
-        input_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans.json")
-        output_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans_encoded.json")
+        from ..dataset.imdb import get_data_and_samples
 
-        encode_plan(input_path=input_path, out_path=output_path, dataset=dataset)
+        data, samples = get_data_and_samples()
+
+        for phase in phases:
+            input_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}.json")
+            output_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_encoded.json")
+            encode_plan(input_path=input_path, out_path=output_path, dataset=dataset, data=data, samples=samples)
+
+
+    else:
+        for phase in phases:
+            input_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans.json")
+            output_path = os.path.join(DATA_ROOT, dataset, "workload/plans", f"{phase}_plans_encoded.json")
+
+            encode_plan(input_path=input_path, out_path=output_path, dataset=dataset)

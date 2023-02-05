@@ -7,7 +7,7 @@ import os
 import pickle
 
 from ..constants import DATA_ROOT, BATCH_SIZE
-from .utils import encode_sample, bitand, normalize_label, obtain_upper_bound_query_size, obtain_upper_bound_query_size_intermediate
+from .utils import encode_sample, bitand, normalize_label, obtain_upper_bound_query_size, obtain_upper_bound_query_size_intermediate, normalize_label_log, obtain_upper_bound_query_size_log
 from .map import physic_ops_id, compare_ops_id, bool_ops_id
 from .entities import PredicateNode, PredicateNodeVector, PlanNodeVector
 
@@ -68,11 +68,20 @@ def encode_predicate_tree(root, relation_name, index_name):
         right_value = root.right_value
         column_name = left_value.split('.')[1]
 
-        if re.match(r'^[a-z][a-zA-Z0-9_]*\.[a-z][a-zA-Z0-9_]*$', right_value) != None and right_value.split('.')[0] in data:
+        # if dataset=='imdb':
+        #     right_value = float(right_value)
+        #     value_max = min_max_column[relation_name][column_name]['max']
+        #     value_min = min_max_column[relation_name][column_name]['min']
+        #     right_value_vec = [(right_value - value_min) / (value_max - value_min)]
+        #     operator_idx = compare_ops_id[operator]
+        #     operator_vec = [0 for _ in range(compare_ops_total_num)]
+        #     operator_vec[operator_idx-1] = 1   
+
+        if re.match(r'^[a-z][a-zA-Z0-9_]*\.[a-z][a-zA-Z0-9_]*$', right_value) != None and right_value.split('.')[0] in tables_id:
             right_value_idx = columns_id[right_value]
             right_value_vec = [0]
             left_value_vec[right_value_idx-1] = 1
-        elif data[relation_name].dtypes[column_name] == 'int64' or data[relation_name].dtypes[column_name] == 'float64':
+        elif dataset=="imdb" or data[relation_name].dtypes[column_name] == 'int64' or data[relation_name].dtypes[column_name] == 'float64':
             right_value = float(right_value)
             value_max = min_max_column[relation_name][column_name]['max']
             value_min = min_max_column[relation_name][column_name]['min']
@@ -131,7 +140,8 @@ def encode_predicate_tree(root, relation_name, index_name):
             left_value = left_value.split('.')[1]
             right_value_vec = list(get_representation(right_value, left_value))
 
-    num_pad = max_string_dim - len(right_value_vec)
+    
+    num_pad = max(max_string_dim - len(right_value_vec), 0)
 
     right_value_vec = [float(x) for x in np.pad(right_value_vec, (0, num_pad), 'constant')]
     node = PredicateNodeVector(root.op_type, root.operator, bool_op_vector, comp_op_vector, left_value_vec, right_value_vec)
@@ -168,7 +178,17 @@ def encode_condition_operation(condition_op, relation_name, index_name):
         left_value_vec[left_value_idx-1] = 1
         right_value = condition_op['right_value']
         column_name = left_value.split('.')[1]
-        if re.match(r'^[a-z][a-zA-Z0-9_]*\.[a-z][a-zA-Z0-9_]*$', right_value) != None and right_value.split('.')[0] in data:
+        
+        if dataset == "imdb":
+            right_value = float(right_value)
+            value_max = min_max_column[relation_name][column_name]['max']
+            value_min = min_max_column[relation_name][column_name]['min']
+            right_value_vec = [(right_value - value_min) / (value_max - value_min)]
+            operator_idx = compare_ops_id[operator]
+            operator_vec = [0 for _ in range(compare_ops_total_num)]
+            operator_vec[operator_idx-1] = 1  
+            
+        elif re.match(r'^[a-z][a-zA-Z0-9_]*\.[a-z][a-zA-Z0-9_]*$', right_value) != None and right_value.split('.')[0] in data:
             operator_idx = compare_ops_id[operator]
             operator_vec = [0 for _ in range(compare_ops_total_num)]
             operator_vec[operator_idx-1] = 1
@@ -266,8 +286,13 @@ def encode_condition(condition, relation_name, index_name, use_tree=True):
 
 def encode_node(node, use_tree):
     # operator + first_condition + second_condition + relation
-    extra_info_num = max(column_total_num, table_total_num, index_total_num)
-    #extra_info_num = column_total_num + table_total_num + index_total_num
+    # extra_info_num = max(column_total_num, table_total_num, index_total_num)
+    extra_info_num = column_total_num + table_total_num + index_total_num + 1 # For num workers
+
+    column_start = 0
+    table_start = column_total_num
+    index_start = table_total_num
+
     operator_vec = [0 for _ in range(physic_op_total_num)]
     
     extra_info_vec = [0 for _ in range(extra_info_num)]
@@ -292,20 +317,20 @@ def encode_node(node, use_tree):
         elif operator == 'Sort':
             for key in node['sort_keys']:
                 extra_info_inx = columns_id[key]
-                extra_info_vec[extra_info_inx-1] = 1
+                extra_info_vec[column_start + extra_info_inx-1] = 1
         elif operator == 'Hash Join' or operator == 'Merge Join' or operator == 'Nested Loop':
-            condition1 = encode_condition(node['condition'], None, None, condition_max_num, use_tree=use_tree)
+            condition1 = encode_condition(node['condition'], None, None, use_tree=use_tree)
         elif operator == 'Aggregate':
             for key in node['group_keys']:
                 extra_info_inx = columns_id[key]
-                extra_info_vec[extra_info_inx-1] = 1
+                extra_info_vec[column_start + extra_info_inx-1] = 1
         elif operator == 'Seq Scan' or operator == 'Bitmap Heap Scan' or operator == 'Index Scan' or operator == 'Bitmap Index Scan' or operator == 'Index Only Scan':
             relation_name = node['relation_name']
             index_name = node['index_name']
             if relation_name != None:
-                extra_info_inx = tables_id[relation_name]
+                extra_info_inx = table_start + tables_id[relation_name]
             else:
-                extra_info_inx = indexes_id[index_name]
+                extra_info_inx = index_start + indexes_id[index_name]
             extra_info_vec[extra_info_inx-1] = 1
             condition1 = encode_condition(node['condition_filter'], relation_name, index_name, use_tree=use_tree)
             condition2 = encode_condition(node['condition_index'], relation_name, index_name, use_tree=use_tree)
@@ -324,9 +349,9 @@ def encode_node(node, use_tree):
                 sample_vec = bitand(encode_sample(node['bitmap_index']), sample_vec)
                 ### Samples Ends
                 has_condition = 1
-        elif operator == 'Gather':
+        elif operator == 'Gather' or operator == 'Gather Merge':
             num_workers = node['workers_planned']
-            extra_info_vec[0] = num_workers
+            extra_info_vec[-1] = num_workers
 
 
     cardinality = node['cardinality'] if 'cardinality' in node else 0
@@ -382,8 +407,13 @@ def make_data_job(plans, use_tree=True):
     target_cost_batch = torch.FloatTensor(target_cost_batch)
     target_card_batch = torch.FloatTensor(target_card_batch)
 
-    target_cost_batch = normalize_label(target_cost_batch, cost_label_min, cost_label_max)
-    target_card_batch = normalize_label(target_card_batch, card_label_min, card_label_max)
+    if dataset == 'imdb':
+        target_cost_batch = normalize_label_log(target_cost_batch, cost_label_min, cost_label_max)
+        target_card_batch = normalize_label_log(target_card_batch, card_label_min, card_label_max)
+
+    else:   
+        target_cost_batch = normalize_label(target_cost_batch, cost_label_min, cost_label_max)
+        target_card_batch = normalize_label(target_card_batch, card_label_min, card_label_max)
 
     return input_batch, target_cost_batch, target_card_batch
 
@@ -445,7 +475,7 @@ if __name__ == '__main__':
         from ..dataset.dmv11 import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
 
     elif dataset == 'imdb':
-        from ..dataset.imdb import columns_id, indexes_id, tables_id, get_representation, data, min_max_column, max_string_dim
+        from ..dataset.imdb import columns_id, indexes_id, tables_id, get_representation, min_max_column, max_string_dim
 
 
     index_total_num = len(indexes_id)
@@ -457,25 +487,28 @@ if __name__ == '__main__':
     condition_op_dim = bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim
     condition_op_dim_pro = bool_ops_total_num + column_total_num + 3
 
-    train_path = "train"
+    train_path = "train_plans"
 
     if dataset == "imdb":
-        train_path = "job-train"
+        train_path = "train_plan_100000"
 
     if process_intermediate:
-        plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_intermediate(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_plans_encoded.json")
+        plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_intermediate(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_encoded.json")
 
     else:
-        plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_plans_encoded.json")
+        if dataset == 'imdb':
+            plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_log(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_encoded.json")
+        else:
+            plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_encoded.json")
 
-    phases = ['train', 'valid', 'test']
+    phases = ['train_plans', 'valid_plans', 'test_plans']
 
     if dataset == 'imdb':
-        phases = ['job-train', 'job-light', 'synthetic', 'scale']
+        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_500', 'train_plan_1000', 'train_plan_2000', 'train_plan_5000', 'train_plan_10000', 'train_plan_20000', 'train_plan_50000', 'train_plan_100000']
 
     for phase in phases:
         plans = []
-        with open(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{phase}_plans_encoded.json") as f:
+        with open(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{phase}_encoded.json") as f:
             for idx, seq in enumerate(f.readlines()):
                 plan = json.loads(seq)
                 plans.append(plan)

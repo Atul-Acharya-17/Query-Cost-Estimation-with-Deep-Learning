@@ -12,6 +12,7 @@ class NodePredictor(nn.Module):
     def __init__(self, op_dim, pred_dim , feature_dim, hid_dim, embedding_type='tree_pool'):
 
         super(NodePredictor, self).__init__()
+        torch.manual_seed(0)
         self.op_dim = op_dim
         self.pred_dim = pred_dim
         self.feature_dim = feature_dim

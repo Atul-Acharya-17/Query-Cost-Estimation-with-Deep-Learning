@@ -16,12 +16,12 @@ def encode_node(node, alias2table):
     if 'Actual Total Time' in node:
         cost = node['Actual Total Time']
     if node['Node Type'] == 'Materialize':
-        return Materialize(), None
+        return Materialize(cost=cost, cardinality=cardinality), None
     elif node['Node Type'] == 'Hash':
-        return Hash(), None
+        return Hash(cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'Sort':
         keys = [change_alias2table(key, alias2table) for key in node['Sort Key']]
-        return Sort(keys), None
+        return Sort(keys, cost=cost, cardinality=cardinality), None
     elif node['Node Type'] == 'BitmapAnd':
         return BitmapCombine('BitmapAnd', cardinality=cardinality, cost=cost), None
     elif node['Node Type'] == 'BitmapOr':
@@ -93,8 +93,10 @@ def encode_node(node, alias2table):
         else:
             return Scan('Index Only Scan', condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=cardinality, cost=cost), None
 
-    elif node['Node Type'] == 'Gather':
+    elif node['Node Type'] == 'Gather' or node['Node Type'] == 'Gather Merge':
         return Gather(node['Workers Planned'], cardinality=cardinality, cost=cost), None
+
+    
     else:
         raise Exception('Unsupported Node Type: '+node['Node Type'])
         return None, None

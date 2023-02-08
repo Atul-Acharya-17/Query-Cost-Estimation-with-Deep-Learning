@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 import json
+import math
 
 import torch
 from torch.autograd import Variable
@@ -16,8 +17,9 @@ from ..constants import DATA_ROOT, RESULT_ROOT, NUM_TRAIN, NUM_VAL, NUM_TEST, BA
 from ..plan.utils import obtain_upper_bound_query_size, obtain_upper_bound_query_size_log
 from ..networks.tree_lstm import TreeLSTM, TreeLSTMBatch
 from ..networks.tree_nn import TreeNN, TreeNNBatch
-from ..networks.tree_gru import TreeGRU
+from ..networks.tree_gru import TreeGRU, TreeGRUBatch
 from ..networks.attn import TreeAttnBatch
+from ..networks.tree_nn_skip import TreeSkip
 from .helpers import get_batch_job_tree
 
 torch.autograd.set_detect_anomaly(True)
@@ -31,18 +33,48 @@ def q_error_loss(pred, target, mini, maxi):
         pred = unnormalize(pred, mini=mini, maxi=maxi)
         target = unnormalize(target, mini=mini, maxi=maxi)
 
-    # print(pred, target)
     q_err = q_error(pred, target)
     return q_err
 
+def q_loss(pred, target, mini, maxi):
+    pred = unnormalize_log(pred, mini=mini, maxi=maxi)
+    q_err = q_error(pred, target)
+    return q_err
 
-def train_batch(train_start, train_end, validate_start, validate_end, num_epochs, directory, phase='train', val=False, val_phase='valid'):
+def train_batch(train_start, train_end, validate_start, validate_end, num_epochs, directory, phase='train', val=False, val_phase='valid', method='tree_lstm'):
 
     start = time.time()
     hidden_dim = 128
     mlp_hid_dim = 256
 
-    model = TreeAttnBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+    if method == 'tree_nn':
+        print('Using TreeNN')
+        model = TreeNNBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+        best_model = TreeNNBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+
+    elif method == 'tree_gru':
+        print('Using TreeGRU')
+        model = TreeGRUBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+        best_model = TreeGRUBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+    
+    elif method == 'tree_lstm':
+        print('Using TreeLSTM')
+        model = TreeLSTMBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+        best_model = TreeLSTMBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+
+    elif method == 'tree_attn':
+        print('Using TreeAttn')
+        model = TreeAttnBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+        best_model = TreeAttnBatch(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+
+    elif method == 'tree_skip':
+        print('Using TreeSkip')
+        model = TreeSkip(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+        best_model = TreeSkip(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
+
+    else:
+        raise NotImplementedError
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     cost_loss_train = []
@@ -50,6 +82,10 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
 
     card_loss_train = []
     card_loss_val = []
+    
+    best_state = model.state_dict()
+
+    best_loss = math.inf
 
     for epoch in range(num_epochs):
         model.train()
@@ -98,9 +134,17 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
             cost_loss_val.append(avg_cost_loss)
             card_loss_val.append(avg_card_loss)
 
+            if avg_cost_loss + avg_card_loss < best_loss:
+                print(f"Saving state of epoch: {epoch}")
+                best_state = model.state_dict()
+
+
     end = time.time()
     print(f"Total: {end - start}")
-    return model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val
+
+    best_model.load_state_dict(best_state)    
+
+    return model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val
 
 def train(train_start, train_end, validate_start, validate_end, num_epochs, directory, phase='train', val=True, val_phase='valid'):
 
@@ -177,7 +221,7 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
     num_samples=0
 
     for batch_idx in range(start_idx, end_idx + 1):
-        input_batch, target_cost, target_cardinality = get_batch_job_tree(batch_idx, phase=phase, directory=directory)
+        input_batch, target_cost, target_cardinality, true_cost, true_card = get_batch_job_tree(batch_idx, phase=phase, directory=directory, get_unnorm=True)
         target_cost, target_cardinality= torch.FloatTensor(target_cost), torch.FloatTensor(target_cardinality)
         target_cost, target_cardinality = Variable(target_cost), Variable(target_cardinality)
 
@@ -185,8 +229,8 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
         if not entire_batch:
             for idx in range(len(input_batch)):
                 plan = input_batch[idx]
-                cost = target_cost[idx]
-                card = target_cardinality[idx]
+                cost = true_cost[idx]
+                card = true_card[idx]
 
                 if batch:
                     plan = [plan]
@@ -194,11 +238,11 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
                 start_time = time.time()
                 estimate_cost, estimate_cardinality = model(plan, batch=True)
                 end_time = time.time()
-                target_cost = target_cost
-                target_cardinality = target_cardinality
+                # target_cost = true_cost[idx]
+                # target_cardinality = true_card[idx]
 
-                cost_loss = q_error_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
-                card_loss = q_error_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
+                cost_loss = q_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
+                card_loss = q_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
                 
                 cost_losses.append(cost_loss.item())
                 card_losses.append(card_loss.item())
@@ -212,8 +256,8 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
 
             estimated_cost, estimated_card = model(plans)
 
-            cost_loss = [q_error_loss(estimated_cost[idx], target_cost[idx], cost_label_min, cost_label_max).item() for idx in range(len(input_batch))]
-            card_loss = [q_error_loss(estimated_card[idx], target_cardinality[idx], card_label_min, card_label_max).item() for idx in range(len(input_batch))]
+            cost_loss = [q_loss(estimated_cost[idx], target_cost[idx], cost_label_min, cost_label_max).item() for idx in range(len(input_batch))]
+            card_loss = [q_loss(estimated_card[idx], target_cardinality[idx], card_label_min, card_label_max).item() for idx in range(len(input_batch))]
 
             cost_losses += cost_loss
             card_losses += card_loss
@@ -228,6 +272,7 @@ def parse_args():
     parser.add_argument('--embedding-type', default='tree_pool')
     parser.add_argument('--epochs', default=10, type=int)
     parser.add_argument('--size', default=10000, type=int)
+    parser.add_argument('--method', default='tree_lstm')
 
     args = parser.parse_args()
     return args
@@ -287,6 +332,8 @@ if __name__ == '__main__':
     dataset = args.dataset
     name = args.name
 
+    method=args.method
+
     epochs = args.epochs
 
     embedding_type = args.embedding_type
@@ -322,6 +369,7 @@ if __name__ == '__main__':
     plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_log(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_encoded.json")
 
     print(card_label_min, card_label_max)
+    print(cost_label_min, cost_label_max)
 
     index_total_num = len(indexes_id)
     table_total_num = len(tables_id)
@@ -368,10 +416,18 @@ if __name__ == '__main__':
         train_end = int(0.9 * train_size)
         valid_start = train_end
         valid_end = train_size
-        model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{size}', val=True, val_phase=f'train_plan_{size}')
+        model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{size}', val=True, val_phase=f'train_plan_{size}', method=method)
 
         save_losses(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, dataset, name, phase='train')
 
         for phase in phases:
             val_and_print(model, ends[phase], directory, phase, name=name)
             print('-'*100)
+
+
+        for phase in phases:
+            val_and_print(best_model, ends[phase], directory, phase, name='best_' + name)
+            print('-'*100)
+        
+
+        # torch.save(model.state_dict(), str(RESULT_ROOT) + "/models/" + dataset + f"/{name}.pt")

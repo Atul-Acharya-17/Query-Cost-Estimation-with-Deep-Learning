@@ -21,10 +21,8 @@ class TreeGRUBatch(nn.Module):
         self.operation_embed = nn.Linear(self.op_dim, self.mlp_hid_dim)
         self.predicate_embed = nn.Linear(self.pred_dim, self.mlp_hid_dim)
         self.sample_bitmap_embed = nn.Linear(1000, self.mlp_hid_dim)
+        self.feature_embed = nn.Linear(self.feature_dim, self.mlp_hid_dim)
 
-        # self.lstm_embed = nn.LSTM(pred_dim, hidden_dim, batch_first=True)
-
-        # if embedding_type == 'tree_pool':
         self.gru = nn.GRU(5 * self.mlp_hid_dim, self.gru_hidden_dim, batch_first=True)
 
         self.hid_mlp2_task1 = nn.Linear(self.gru_hidden_dim, self.mlp_hid_dim)
@@ -141,19 +139,18 @@ class TreeGRUBatch(nn.Module):
         if len(left_nodes) > 0:
             _, left_hidden_state = self.tree_representation(left_nodes)
             left_mask = torch.Tensor(left_mask) > 0
-            left_hid_vecs[left_mask] = left_hidden_state
+            left_hid_vecs[0][left_mask] = left_hidden_state
 
         if len(right_nodes) > 0:
             _, right_hidden_state = self.tree_representation(right_nodes)
             right_mask = torch.Tensor(right_mask) > 0
-            right_hid_vecs[right_mask] = right_hidden_state
+            right_hid_vecs[0][right_mask] = right_hidden_state
 
         hidden_state = (right_hid_vecs + left_hid_vecs) / 2
 
-        return self.lstm(input_vector.view(batch_size, 1, -1), hidden_state)
+        return self.gru(input_vector.view(batch_size, 1, -1), hidden_state)
 
-
-    def forward(self, nodes):
+    def forward(self, nodes, batch=True):
 
         batch_size = len(nodes)
 

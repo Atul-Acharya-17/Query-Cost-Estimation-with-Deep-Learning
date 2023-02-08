@@ -84,7 +84,11 @@ def unnormalize(vecs, mini, maxi):
 
 def unnormalize_log(vecs, mini, maxi):
     # print(vecs)
-    return torch.exp(vecs * (maxi - mini) + mini)
+    try:
+        return torch.exp(vecs * (maxi - mini) + mini)
+
+    except:
+        return np.exp(vecs * (maxi - mini) + mini, dtype="float64")
 
 
 

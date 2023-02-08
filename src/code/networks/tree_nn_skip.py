@@ -3,11 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class TreeNNBatch(nn.Module):
+class TreeSkip(nn.Module):
 
     def __init__(self, op_dim, pred_dim , feature_dim, hidden_dim, hid_dim, embedding_type='tree_pool'):
 
-        super(TreeNNBatch, self).__init__()
+        super(TreeSkip, self).__init__()
         torch.manual_seed(0)
         self.op_dim = op_dim
         self.pred_dim = pred_dim
@@ -29,7 +29,7 @@ class TreeNNBatch(nn.Module):
             nn.Linear(256, 128),
             nn.ReLU()
         )
-        
+
         self.hid_mlp2_task1 = nn.Linear(128, self.mlp_hid_dim)
         self.hid_mlp2_task2 = nn.Linear(128, self.mlp_hid_dim)
         self.hid_mlp3_task1 = nn.Linear(self.mlp_hid_dim, self.mlp_hid_dim)
@@ -166,7 +166,7 @@ class TreeNNBatch(nn.Module):
 
 
     def forward(self, nodes, batch=True):
-        output = self.tree_representation(nodes)
+        output, _, _ = self.tree_representation(nodes)
 
         cost = F.relu(self.hid_mlp2_task1(output))
         cost = F.relu(self.hid_mlp3_task1(cost))

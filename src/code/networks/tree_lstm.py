@@ -167,7 +167,6 @@ class TreeLSTMBatch(nn.Module):
         self.predicate_embed = nn.Linear(self.pred_dim, self.mlp_hid_dim)
         self.sample_bitmap_embed = nn.Linear(1000, self.mlp_hid_dim)
         self.feature_embed = nn.Linear(self.feature_dim, self.mlp_hid_dim)
-
         self.lstm_embed = nn.LSTM(pred_dim, hidden_dim, batch_first=True)
 
         if embedding_type == 'tree_pool':

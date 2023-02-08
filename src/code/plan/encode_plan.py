@@ -368,8 +368,14 @@ def plan_seq_2_tree_vec(seq, idx, use_tree=True):
     while idx < len(seq):
         
         operator, extra_info, condition1, condition2, sample, condition_mask, cost, cardinality = encode_node(seq[idx], use_tree=use_tree)
-        cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
-        cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
+        if dataset == 'imdb':
+            cardinality = normalize_label_log(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
+            cost = normalize_label_log(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
+
+        else:
+            cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
+            cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
+
         node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality)
 
         left_child, next_idx = plan_seq_2_tree_vec(seq, idx + 1, use_tree=use_tree)
@@ -394,18 +400,27 @@ def make_data_job(plans, use_tree=True):
     target_cost_batch = []
     target_card_batch = []
     input_batch = []
+
+    true_cost_batch = []
+    true_card_batch = []
     
     for plan in plans:
         target_cost = plan['cost']
         target_cardinality = plan['cardinality']
         target_cost_batch.append(target_cost)
         target_card_batch.append(target_cardinality)
+        true_cost_batch.append(target_cost)
+        true_card_batch.append(target_cardinality)
+
         plan = plan['seq']
         plan_tree = encode_plan(plan, use_tree)
         input_batch.append(plan_tree)
 
     target_cost_batch = torch.FloatTensor(target_cost_batch)
     target_card_batch = torch.FloatTensor(target_card_batch)
+
+    true_cost_batch = torch.FloatTensor(true_cost_batch)
+    true_card_batch = torch.FloatTensor(true_card_batch)
 
     if dataset == 'imdb':
         target_cost_batch = normalize_label_log(target_cost_batch, cost_label_min, cost_label_max)
@@ -415,7 +430,7 @@ def make_data_job(plans, use_tree=True):
         target_cost_batch = normalize_label(target_cost_batch, cost_label_min, cost_label_max)
         target_card_batch = normalize_label(target_card_batch, card_label_min, card_label_max)
 
-    return input_batch, target_cost_batch, target_card_batch
+    return input_batch, target_cost_batch, target_card_batch, true_cost_batch, true_card_batch
 
 
 def chunks(arr, batch_size):
@@ -432,13 +447,18 @@ def save_data_job(plans, batch_size=BATCH_SIZE, phase='train', dataset='census13
 
     for batch_id, plans_batch in enumerate(chunks(plans, batch_size)):
         print ('batch_id', batch_id, len(plans_batch))
-        input_batch, target_cost_batch, target_cardinality_batch = make_data_job(plans_batch, use_tree)
+        input_batch, target_cost_batch, target_cardinality_batch, true_cost_batch, true_card_batch = make_data_job(plans_batch, use_tree)
         with open(f'{directory}/input_batch_{suffix+str(batch_id)}.pkl', 'wb') as handle:
             pickle.dump(input_batch, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(f'{directory}/target_cost_{suffix+str(batch_id)}.pkl', 'wb') as handle:
             pickle.dump(target_cost_batch, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(f'{directory}/target_cardinality_{suffix+str(batch_id)}.pkl', 'wb') as handle:
             pickle.dump(target_cardinality_batch, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'{directory}/true_cardinality_{suffix+str(batch_id)}.pkl', 'wb') as handle:
+            pickle.dump(true_card_batch, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f'{directory}/true_cost_{suffix+str(batch_id)}.pkl', 'wb') as handle:
+            pickle.dump(true_cost_batch, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            
         print ('saved: ', str(batch_id))
 
 def parse_args():
@@ -504,7 +524,7 @@ if __name__ == '__main__':
     phases = ['train_plans', 'valid_plans', 'test_plans']
 
     if dataset == 'imdb':
-        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_500', 'train_plan_1000', 'train_plan_2000', 'train_plan_5000', 'train_plan_10000', 'train_plan_20000', 'train_plan_50000', 'train_plan_100000']
+        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_100000']#'train_plan_500', 'train_plan_1000', 'train_plan_2000', 'train_plan_5000', 'train_plan_10000', 'train_plan_20000', 'train_plan_50000', 'train_plan_100000']
 
     for phase in phases:
         plans = []

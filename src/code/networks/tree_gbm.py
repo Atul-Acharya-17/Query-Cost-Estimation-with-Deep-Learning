@@ -8,8 +8,8 @@ import daal4py as d4p
 class TreeGBM():
 
     def __init__(self, tree_pooler, fast_inference=False, num_features=1706) -> None:
-        self.card_xgb = []
-        self.cost_xgb = []
+        self.card_gbm = []
+        self.cost_gbm = []
         self.tree_pooler = tree_pooler
         self.fast_inference = fast_inference
         self.n_features = num_features
@@ -33,10 +33,10 @@ class TreeGBM():
             elif type(card) == lightgbm.LGBMRegressor:
                 card = d4p.get_gbt_model_from_lightgbm(card.booster_)            
 
-        self.cost_xgb.append(cost)
-        self.card_xgb.append(card)
+        self.cost_gbm.append(cost)
+        self.card_gbm.append(card)
 
-    def predict(self, plan, use_true=False, use_db_pred=False, use_pred=True):
+    def predict(self, plan, use_true=False, use_db_pred=False):
 
         op_type = np.array(plan.operator_vec)
         feature = np.array(plan.extra_info_vec)
@@ -69,6 +69,13 @@ class TreeGBM():
             left_cost, left_card = self.predict(plan.children[0])
             right_cost, right_card = self.predict(plan.children[1])
 
+        if use_db_pred:
+            left_card = np.array([plan.children[0].db_estimate_card]) if len(plan.children) >= 1 else np.array([1])
+            right_card = np.array([plan.children[1].db_estimate_card]) if len(plan.children) == 2 else np.array([1])
+        
+        elif use_true:
+            left_card = np.array([plan.children[0].cardinality]) if len(plan.children) >= 1 else np.array([1])
+            right_card = np.array([plan.children[1].cardinality]) if len(plan.children) == 2 else np.array([1])
         
         data = np.concatenate((op_type, feature, bitmap, condition1_vector, condition2_vector, left_cost, right_cost, left_card, right_card))
         data = data.reshape((1, -1))
@@ -76,14 +83,14 @@ class TreeGBM():
         cost_sum = 0
         card_sum = 0
 
-        for model in self.cost_xgb:
+        for model in self.cost_gbm:
             if self.fast_inference:
                 cost = d4p.gbt_regression_prediction().compute(data, model).prediction[0]
             else:
                 cost = model.predict(data)
             cost_sum += cost
 
-        for model in self.card_xgb:
+        for model in self.card_gbm:
             if self.fast_inference:
                 card = d4p.gbt_regression_prediction().compute(data, model).prediction[0]
             else:

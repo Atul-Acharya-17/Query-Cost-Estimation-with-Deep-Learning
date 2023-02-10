@@ -9,6 +9,8 @@ import torch
 import xgboost
 import lightgbm
 
+import pickle
+
 from ..plan.utils import unnormalize, unnormalize_log
 from ..plan.entities import PredicateNodeVector, PlanNodeVector
 from .loss_fn import q_error
@@ -112,7 +114,7 @@ def generate_training_data(train_start, train_end, directory, phase, tree_pooler
     return X_train, y_cost, y_card
 
 
-def train_xgb(train_start, train_end, directory, phase, model):
+def train_gbm(train_start, train_end, directory, phase, model):
     X_train, y_cost, y_card = generate_training_data(train_start, train_end, directory=directory, phase=phase, tree_pooler=model.pool)
 
     X_train = np.concatenate(X_train, axis=0)
@@ -139,7 +141,7 @@ def train_xgb(train_start, train_end, directory, phase, model):
     return gbm_cost, gbm_card, training_time
 
 
-def evaluate_xgb(xgb, start_idx, end_idx, directory, phase):
+def evaluate_gbm(gbm, start_idx, end_idx, directory, phase):
     cost_losses = []
     card_losses = []
     
@@ -157,7 +159,7 @@ def evaluate_xgb(xgb, start_idx, end_idx, directory, phase):
             real_card = true_card[idx].item()
 
             start_time = time.time()
-            estimated_cost, estimated_card = xgb.predict(plan)
+            estimated_cost, estimated_card = gbm.predict(plan)
             end_time = time.time()
 
             cost_loss = q_loss(estimated_cost[0], real_cost, cost_label_min, cost_label_max)
@@ -215,6 +217,7 @@ def parse_args():
     parser.add_argument('--learning-rate', default=0.1, type=float)
     parser.add_argument('--n_estimators', default=100, type=int)
     parser.add_argument('--fast-inference', action='store_true')
+    parser.add_argument('--save', action='store_true')
 
     args = parser.parse_args()
     return args
@@ -234,6 +237,8 @@ if __name__ == '__main__':
     n_estimators = args.n_estimators
 
     fast_inference = args.fast_inference
+    
+    save = args.save
 
     if fast_inference:
         print("Using fast inference")
@@ -294,17 +299,24 @@ if __name__ == '__main__':
 
     phase=f'train_plan_{size}'
 
-    xgb = TreeGBM(tree_pooler=model.pool, fast_inference=fast_inference)
+    gbm = TreeGBM(tree_pooler=model.pool, fast_inference=fast_inference)
 
     train_size = size // BATCH_SIZE - 1 if size % BATCH_SIZE == 0 else size // BATCH_SIZE
 
     times = []
+    
+    model_dir = str(RESULT_ROOT) + '/model/' + dataset + '/' + method
 
     for i in range(num_models):
-        xgb_cost, xgb_card, train_time = train_xgb(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
-        xgb.add_estimators(xgb_cost, xgb_card)
+        gbm_cost, gbm_card, train_time = train_gbm(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
+        gbm.add_estimators(gbm_cost, gbm_card)
         print(f'Time to train model {i+1}: {train_time}')
         times.append(train_time)
+        
+        if save:
+            pickle.dump(gbm_cost, model_dir + f'_{i+1}_cost')
+            pickle.dump(gbm_card, model_dir + f'_{i+1}_card')
+        
 
     json_data = {
         'training_times':times
@@ -326,5 +338,5 @@ if __name__ == '__main__':
     }
 
     for phase in ['synthetic_plan', 'job-light_plan']:
-        evaluate_xgb(xgb, 0, ends[phase], directory, phase)
+        evaluate_gbm(gbm, 0, ends[phase], directory, phase)
         print('-'*100)

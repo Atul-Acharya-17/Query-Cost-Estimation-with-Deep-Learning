@@ -356,8 +356,10 @@ def encode_node(node, use_tree):
 
     cardinality = node['cardinality'] if 'cardinality' in node else 0
     cost = node['cost'] if 'cost' in node else 0
+    
+    db_estimate_card = node['db_estimate_card'] if 'db_estimate_card' in node else 0
 
-    return operator_vec, extra_info_vec, condition1, condition2, sample_vec, has_condition, cost, cardinality
+    return operator_vec, extra_info_vec, condition1, condition2, sample_vec, has_condition, cost, cardinality, db_estimate_card
 
 
 def plan_seq_2_tree_vec(seq, idx, use_tree=True):
@@ -367,16 +369,18 @@ def plan_seq_2_tree_vec(seq, idx, use_tree=True):
         return None, idx + 1
     while idx < len(seq):
         
-        operator, extra_info, condition1, condition2, sample, condition_mask, cost, cardinality = encode_node(seq[idx], use_tree=use_tree)
+        operator, extra_info, condition1, condition2, sample, condition_mask, cost, cardinality, db_estimate_card = encode_node(seq[idx], use_tree=use_tree)
         if dataset == 'imdb':
             cardinality = normalize_label_log(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
             cost = normalize_label_log(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
+            db_estimate_card = normalize_label_log(torch.FloatTensor([db_estimate_card]), card_label_min, card_label_max)
 
         else:
             cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
             cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
-
-        node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality)
+            db_estimate_card = normalize_label(torch.FloatTensor([db_estimate_card]), card_label_min, card_label_max)
+            
+        node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality, db_estimate_card=db_estimate_card)
 
         left_child, next_idx = plan_seq_2_tree_vec(seq, idx + 1, use_tree=use_tree)
         if left_child is not None:

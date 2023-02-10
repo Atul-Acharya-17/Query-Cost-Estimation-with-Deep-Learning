@@ -1,11 +1,12 @@
 class Node(object):
-    def __init__(self, cardinality=None, cost=None):
+    def __init__(self, cardinality=None, cost=None, db_estimate_card=None):
         self.cardinality = cardinality
         self.cost = cost
+        self.db_estimate_card = db_estimate_card
 
 class Materialize(Node):
-    def __init__(self, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = 'Materialize'
 
     def __str__(self):
@@ -13,8 +14,8 @@ class Materialize(Node):
 
 
 class Aggregate(Node):
-    def __init__(self, strategy, keys, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, strategy, keys, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = 'Aggregate'
         self.strategy = strategy
         self.group_keys = keys
@@ -24,8 +25,8 @@ class Aggregate(Node):
 
 
 class Sort(Node):
-    def __init__(self, sort_keys, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, sort_keys, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.sort_keys = sort_keys
         self.node_type = 'Sort'
 
@@ -34,8 +35,8 @@ class Sort(Node):
 
 
 class Hash(Node):
-    def __init__(self, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = 'Hash'
 
     def __str__(self):
@@ -43,8 +44,8 @@ class Hash(Node):
 
 
 class Join(Node):
-    def __init__(self, node_type, condition_seq, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, node_type, condition_seq, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = node_type
         self.condition = condition_seq
 
@@ -53,8 +54,8 @@ class Join(Node):
 
 
 class Scan(Node):
-    def __init__(self, node_type, condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, node_type, condition_seq_filter, condition_seq_index, relation_name, index_name, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = node_type
         self.condition_filter = condition_seq_filter
         self.condition_index = condition_seq_index
@@ -67,8 +68,8 @@ class Scan(Node):
 
 
 class BitmapCombine(Node):
-    def __init__(self, operator, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, operator, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = operator
 
     def __str__(self):
@@ -76,16 +77,16 @@ class BitmapCombine(Node):
 
 
 class Result(Node):
-    def __init__(self, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = 'Result'
 
     def __str__(self):
         return 'Result'
 
 class Gather(Node):
-    def __init__(self, workers_planned, cardinality=None, cost=None):
-        Node.__init__(self, cardinality=cardinality, cost=cost)
+    def __init__(self, workers_planned, cardinality=None, cost=None, db_estimate_card=None):
+        Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
         self.node_type = 'Gather'
         self.workers_planned = workers_planned
 

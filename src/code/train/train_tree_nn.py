@@ -43,7 +43,6 @@ def q_loss(pred, target, mini, maxi):
 
 def train_batch(train_start, train_end, validate_start, validate_end, num_epochs, directory, phase='train', val=False, val_phase='valid', method='tree_lstm'):
 
-    start = time.time()
     hidden_dim = 128
     mlp_hid_dim = 256
 
@@ -82,12 +81,19 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
 
     card_loss_train = []
     card_loss_val = []
+
+    training_times = []
     
     best_state = model.state_dict()
 
     best_loss = math.inf
+    best_epoch = 0
 
     for epoch in range(num_epochs):
+
+        epoch_time = 0
+        start_time = time.time()
+
         model.train()
         cost_loss_total = 0.
         card_loss_total = 0.
@@ -119,6 +125,12 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
             loss.backward()
             optimizer.step()
 
+        end_time = time.time()
+
+        epoch_time = end_time - start_time
+
+        training_times.append(epoch_time)
+
         print("Epoch {}, training cost loss: {}, training card loss: {}".format(epoch, cost_loss_total/num_samples, card_loss_total/num_samples))
 
         cost_loss_train.append(cost_loss_total / num_samples)
@@ -137,78 +149,15 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
             if avg_cost_loss + avg_card_loss < best_loss:
                 print(f"Saving state of epoch: {epoch}")
                 best_state = model.state_dict()
+                best_loss = avg_card_loss + avg_cost_loss
+                best_epoch = epoch
 
-
-    end = time.time()
-    print(f"Total: {end - start}")
+    print(f"Best epoch: {best_epoch}")
 
     best_model.load_state_dict(best_state)    
 
-    return model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val
+    return model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times
 
-def train(train_start, train_end, validate_start, validate_end, num_epochs, directory, phase='train', val=True, val_phase='valid'):
-
-    start = time.time()
-    hidden_dim = 128
-    mlp_hid_dim = 128
-    model = TreeLSTM(physic_op_total_num, bool_ops_total_num + compare_ops_total_num + column_total_num + max_string_dim, feature_num, hidden_dim, mlp_hid_dim, embedding_type=embedding_type)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    cost_loss_train = []
-    cost_loss_val = []
-
-    card_loss_train = []
-    card_loss_val = []
-
-    for epoch in range(num_epochs):
-        model.train()
-        cost_loss_total = 0.
-        card_loss_total = 0.
-        # cards = []
-        # costs = []
-        num_samples = 0
-        for batch_idx in range(train_start, train_end + 1):
-            input_batch, target_cost, target_cardinality = get_batch_job_tree(batch_idx, phase=phase, directory=directory)
-            target_cost, target_cardinality= torch.FloatTensor(target_cost), torch.FloatTensor(target_cardinality)
-            target_cost, target_cardinality = Variable(target_cost), Variable(target_cardinality)
-
-            optimizer.zero_grad()
-
-            num_samples += len(input_batch)
-
-            loss = 0.0
-
-            for idx in range(len(input_batch)):
-                plan = input_batch[idx]
-                cost = target_cost[idx]
-                card = target_cardinality[idx]
-
-                estimate_cost, estimate_cardinality = model(plan)
-
-                cost_loss = q_error_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
-                card_loss = q_error_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
-
-                loss += cost_loss + card_loss
-                cost_loss_total += cost_loss.item()
-                card_loss_total += card_loss.item()
-
-            loss /= len(input_batch)
-            loss.backward()
-            optimizer.step()
-
-        print("Epoch {}, training cost loss: {}, training card loss: {}".format(epoch, cost_loss_total/num_samples, card_loss_total/num_samples))
-
-        if val:
-            valid_cost_losses, valid_card_losses, _ = validate(model, validate_start, validate_end, directory, phase=val_phase)
-            avg_cost_loss = sum(valid_cost_losses) / len(valid_cost_losses)
-            avg_card_loss = sum(valid_card_losses) / len(valid_card_losses)
-
-            print("Epoch {}, validation cost loss: {}, validation card loss: {}".format(epoch, avg_cost_loss, avg_card_loss))
-
-    end = time.time()
-
-    print(f"Total: {end - start}")
-    return model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val
 
 def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, entire_batch=False):
     model.eval()
@@ -238,8 +187,6 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
                 start_time = time.time()
                 estimate_cost, estimate_cardinality = model(plan, batch=True)
                 end_time = time.time()
-                # target_cost = true_cost[idx]
-                # target_cardinality = true_card[idx]
 
                 cost_loss = q_loss(estimate_cost[0], cost, cost_label_min, cost_label_max)
                 card_loss = q_loss(estimate_cardinality[0], card, card_label_min, card_label_max)
@@ -256,8 +203,8 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
 
             estimated_cost, estimated_card = model(plans)
 
-            cost_loss = [q_loss(estimated_cost[idx], target_cost[idx], cost_label_min, cost_label_max).item() for idx in range(len(input_batch))]
-            card_loss = [q_loss(estimated_card[idx], target_cardinality[idx], card_label_min, card_label_max).item() for idx in range(len(input_batch))]
+            cost_loss = [q_loss(estimated_cost[idx], true_cost[idx], cost_label_min, cost_label_max).item() for idx in range(len(input_batch))]
+            card_loss = [q_loss(estimated_card[idx], true_card[idx], card_label_min, card_label_max).item() for idx in range(len(input_batch))]
 
             cost_losses += cost_loss
             card_losses += card_loss
@@ -314,18 +261,21 @@ def val_and_print(model, test_end, directory, phase, name='tree_lstm'):
     stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times)), columns=['cost_errors', 'card_errors', 'inference_time'])
     stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_{name}_{phase}.csv")
 
-def save_losses(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, dataset, name, phase):
+
+def save_training_stats(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times, dataset, name, phase):
     json_data = {
         'cost_loss_train':cost_loss_train,
         'cost_loss_val':cost_loss_val,
         'card_loss_train':card_loss_train,
-        'card_loss_val':card_loss_val
+        'card_loss_val':card_loss_val,
+        'training_times':training_times
     }
     
-    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/losses_{name}_{phase}.json"
+    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{name}_{phase}.json"
 
     with open(file_path, 'w') as f:
         json.dump(json_data, f)
+
 
 if __name__ == '__main__':
     args = parse_args()
@@ -416,9 +366,10 @@ if __name__ == '__main__':
         train_end = int(0.9 * train_size)
         valid_start = train_end
         valid_end = train_size
-        model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{size}', val=True, val_phase=f'train_plan_{size}', method=method)
+        
+        model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{size}', val=True, val_phase=f'train_plan_{size}', method=method)
 
-        save_losses(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, dataset, name, phase='train')
+        save_training_stats(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times, dataset, name, phase='train')
 
         for phase in phases:
             val_and_print(model, ends[phase], directory, phase, name=name)

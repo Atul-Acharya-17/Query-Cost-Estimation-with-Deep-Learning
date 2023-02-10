@@ -7,6 +7,7 @@ import math
 import torch
 
 import xgboost
+import lightgbm
 
 from ..plan.utils import unnormalize, unnormalize_log
 from ..plan.entities import PredicateNodeVector, PlanNodeVector
@@ -16,7 +17,7 @@ from .helpers import get_batch_job_tree
 from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id
 
 from ..networks.tree_lstm import TreeLSTMBatch
-from ..networks.tree_xgb import TreeXGB
+from ..networks.tree_gbm import TreeGBM
 
 from ..constants import DATA_ROOT, RESULT_ROOT, NUM_TRAIN, NUM_VAL, NUM_TEST, BATCH_SIZE, JOB_LIGHT, JOB_TRAIN, SCALE, SYNTHETIC
 
@@ -31,14 +32,12 @@ def q_error_loss(pred, target, mini, maxi):
         target = unnormalize(target, mini=mini, maxi=maxi)
 
     q_err = q_error(pred, target)
-    print(pred, target, q_err)
     return q_err
 
 
 def q_loss(pred, target, mini, maxi):
     pred = unnormalize_log(pred, mini=mini, maxi=maxi)
     q_err = q_error(pred, target)
-    print(pred, target, q_err)
     return q_err
 
 
@@ -121,16 +120,23 @@ def train_xgb(train_start, train_end, directory, phase, model):
     y_card = np.concatenate(y_card, axis=0).reshape(-1, 1)
 
     print(X_train.shape)
-    # print(y_cost.shape)
-    # print(y_card.shape)
 
-    xgb_cost = xgboost.XGBRegressor(n_estimators=100, max_depth=8, eta=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
-    xgb_cost.fit(X_train, y_cost)
+    if method == 'xgb':
+        gbm_card = xgboost.XGBRegressor(n_estimators=n_estimators, max_depth=depth, eta=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
+        gbm_cost = xgboost.XGBRegressor(n_estimators=n_estimators, max_depth=depth, eta=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
 
-    xgb_card = xgboost.XGBRegressor(n_estimators=100, max_depth=8, eta=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
-    xgb_card.fit(X_train, y_card)
+    else:
+        gbm_card = lightgbm.LGBMRegressor(n_estimators=n_estimators, max_depth=depth, learning_rate=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
+        gbm_cost = lightgbm.LGBMRegressor(n_estimators=n_estimators, max_depth=depth, learning_rate=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
 
-    return xgb_cost, xgb_card 
+    start_time = time.time()
+    gbm_cost.fit(X_train, y_cost)
+    gbm_card.fit(X_train, y_card)
+
+    end_time = time.time()
+    training_time = end_time - start_time
+
+    return gbm_cost, gbm_card, training_time
 
 
 def evaluate_xgb(xgb, start_idx, end_idx, directory, phase):
@@ -193,7 +199,7 @@ def evaluate_xgb(xgb, start_idx, end_idx, directory, phase):
     print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}, \nInference Time metrics: {time_metrics}")
     
     stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times)), columns=['cost_errors', 'card_errors', 'inference_time'])
-    stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_xgb_{phase}_new.csv")
+    stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_{method}_{num_models}_{n_estimators}_{depth}_{learning_rate}_fast_{fast_inference}_{phase}.csv")
 
 
 
@@ -203,8 +209,12 @@ def parse_args():
     parser.add_argument('--name', default='tree_xgb')
     parser.add_argument('--embedding-type', default='tree_pool')
     parser.add_argument('--size', default=10000, type=int)
-    parser.add_argument('--method', default='tree_xgb')
+    parser.add_argument('--method', default='xgb')
     parser.add_argument('--num-models', default=5, type=int)
+    parser.add_argument('--depth', default=8, type=int)
+    parser.add_argument('--learning-rate', default=0.1, type=float)
+    parser.add_argument('--n_estimators', default=100, type=int)
+    parser.add_argument('--fast-inference', action='store_true')
 
     args = parser.parse_args()
     return args
@@ -217,6 +227,16 @@ if __name__ == '__main__':
     dataset = args.dataset
     size = args.size
     num_models = args.num_models
+    method = args.method
+
+    depth = args.depth
+    learning_rate = args.learning_rate
+    n_estimators = args.n_estimators
+
+    fast_inference = args.fast_inference
+
+    if fast_inference:
+        print("Using fast inference")
 
     train_end = NUM_TRAIN // BATCH_SIZE - 1 if NUM_TRAIN % BATCH_SIZE == 0 else NUM_TRAIN // BATCH_SIZE
     valid_end = NUM_VAL // BATCH_SIZE - 1 if NUM_VAL % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
@@ -274,15 +294,26 @@ if __name__ == '__main__':
 
     phase=f'train_plan_{size}'
 
-    xgb = TreeXGB(tree_pooler=model.pool)
+    xgb = TreeGBM(tree_pooler=model.pool, fast_inference=fast_inference)
+
     train_size = size // BATCH_SIZE - 1 if size % BATCH_SIZE == 0 else size // BATCH_SIZE
 
+    times = []
+
     for i in range(num_models):
-        start_time = time.time()
-        xgb_cost, xgb_card = train_xgb(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
-        end_time = time.time()
+        xgb_cost, xgb_card, train_time = train_xgb(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
         xgb.add_estimators(xgb_cost, xgb_card)
-        print(f'Time to train model {i+1}: {end_time-start_time}')
+        print(f'Time to train model {i+1}: {train_time}')
+        times.append(train_time)
+
+    json_data = {
+        'training_times':times
+    }
+
+    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{method}_{phase}.json"
+
+    with open(file_path, 'w') as f:
+        json.dump(json_data, f)
 
     ends = {
         "train": train_end,

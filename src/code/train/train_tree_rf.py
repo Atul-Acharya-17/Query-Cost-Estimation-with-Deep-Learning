@@ -6,8 +6,7 @@ import json
 import math
 import torch
 
-import xgboost
-import lightgbm
+from sklearn.ensemble import RandomForestRegressor
 import warnings
 
 
@@ -20,17 +19,13 @@ from ..plan.entities import PredicateNodeVector, PlanNodeVector
 from .loss_fn import q_error
 from ..plan.utils import obtain_upper_bound_query_size, obtain_upper_bound_query_size_log
 from .helpers import get_batch_job_tree
-from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id, id2op
+from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id
 
 from ..networks.tree_lstm import TreeLSTMBatch
-from ..networks.tree_gbm import TreeGBM
+from ..networks.tree_rf import TreeRF
 
 from ..constants import DATA_ROOT, RESULT_ROOT, NUM_TRAIN, NUM_VAL, NUM_TEST, BATCH_SIZE, JOB_LIGHT, JOB_TRAIN, SCALE, SYNTHETIC
 
-print(xgboost.__version__)
-print(lightgbm.__version__)
-
-from ..plan.utils import class2json
 
 
 def q_error_loss(pred, target, mini, maxi):
@@ -53,13 +48,14 @@ def q_loss(pred, target, mini, maxi):
     return q_err
 
 
-def flatten_plan(node, tree_pooler):
-    op_type = np.array(node.operator_vec)
-    feature = np.array(node.extra_info_vec)
-    bitmap = np.array(node.sample_vec) * node.has_cond
 
-    cond1 = node.condition1_root
-    cond2 = node.condition2_root
+def flatten_plan(plan, tree_pooler):
+    op_type = np.array(plan.operator_vec)
+    feature = np.array(plan.extra_info_vec)
+    bitmap = np.array(plan.sample_vec) * plan.has_cond
+
+    cond1 = plan.condition1_root
+    cond2 = plan.condition2_root
 
     if cond1 is None:
         condition1_vector = np.zeros(256)
@@ -73,8 +69,8 @@ def flatten_plan(node, tree_pooler):
         condition2_vector = tree_pooler(cond2)[0]
         condition2_vector = condition2_vector.cpu().detach().numpy()    
 
-    cost = np.array(node.cost, dtype="float64")
-    card = np.array(node.cardinality, dtype="float64")
+    cost = np.array(plan.cost, dtype="float64")
+    card = np.array(plan.cardinality, dtype="float64")
 
 
     right_card = np.array([1.0])
@@ -85,13 +81,13 @@ def flatten_plan(node, tree_pooler):
     has_left = np.array([0])
     has_right = np.array([0])
 
-    if len(node.children) == 1: #  Only left child
-        x_data, y_cost, y_card, left_cost, left_card = flatten_plan(node.children[0], tree_pooler)
+    if len(plan.children) == 1: #  Only left child
+        x_data, y_cost, y_card, left_cost, left_card = flatten_plan(plan.children[0], tree_pooler)
         has_left = np.array([1])
 
-    elif len(node.children) == 2: # 2 children
-        x_data_left, y_cost_left, y_card_left, left_cost, left_card = flatten_plan(node.children[0], tree_pooler)
-        x_data_right, y_cost_right, y_card_right, right_cost, right_card = flatten_plan(node.children[1], tree_pooler)
+    elif len(plan.children) == 2: # 2 children
+        x_data_left, y_cost_left, y_card_left, left_cost, left_card = flatten_plan(plan.children[0], tree_pooler)
+        x_data_right, y_cost_right, y_card_right, right_cost, right_card = flatten_plan(plan.children[1], tree_pooler)
 
         x_data = x_data_left + x_data_right
         y_cost = y_cost_left + y_cost_right
@@ -114,19 +110,6 @@ def flatten_plan(node, tree_pooler):
     return x_data, y_cost, y_card, cost, card
 
 
-def plan2dict(node):
-    operation_vec = np.array(node.operator_vec)
-
-    node_type = id2op[np.argmax(operation_vec) + 1]
-
-    if len(node.children)==0:
-        return f"{node_type}"
-    elif len(node.children)==1:
-        return f"{node_type}: [{plan2dict(node.children[0])}]"
-    else:
-        return f"{node_type}: [{plan2dict(node.children[0])} , {plan2dict(node.children[1])}]"
-    
-
 
 def generate_training_data(train_start, train_end, directory, phase, tree_pooler):
     X_train = []
@@ -140,10 +123,11 @@ def generate_training_data(train_start, train_end, directory, phase, tree_pooler
             X_train += x
             y_cost += cost
             y_card += card
+
     return X_train, y_cost, y_card
 
 
-def train_gbm(train_start, train_end, directory, phase, model):
+def train_rf(train_start, train_end, directory, phase, model):
     X_train, y_cost, y_card = generate_training_data(train_start, train_end, directory=directory, phase=phase, tree_pooler=model.pool)
 
     X_train = np.concatenate(X_train, axis=0)
@@ -152,25 +136,19 @@ def train_gbm(train_start, train_end, directory, phase, model):
 
     print(X_train.shape)
 
-    if method == 'xgb':
-        gbm_card = xgboost.XGBRegressor(n_estimators=n_estimators, max_depth=depth, eta=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
-        gbm_cost = xgboost.XGBRegressor(n_estimators=n_estimators, max_depth=depth, eta=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
-
-    else:
-        gbm_card = lightgbm.LGBMRegressor(num_leaves=31, n_estimators=n_estimators, max_depth=depth, learning_rate=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
-        gbm_cost = lightgbm.LGBMRegressor(num_leaves=31, n_estimators=n_estimators, max_depth=depth, learning_rate=learning_rate, subsample=0.7, colsample_bytree=0.8, seed=0)
-
+    cost_rf = RandomForestRegressor(random_state=0, n_estimators=10, max_depth=14)
+    card_rf = RandomForestRegressor(random_state=0, n_estimators=10, max_depth=14)
     start_time = time.time()
-    gbm_cost.fit(X_train, y_cost)
-    gbm_card.fit(X_train, y_card)
+    cost_rf.fit(X_train, y_cost)
+    card_rf.fit(X_train, y_card)
 
     end_time = time.time()
     training_time = end_time - start_time
 
-    return gbm_cost, gbm_card, training_time
+    return cost_rf, card_rf, training_time
 
 
-def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'):
+def evaluate_rf(rf, start_idx, end_idx, directory, phase, mode='use_estimator'):
     cost_losses = []
     card_losses = []
     
@@ -197,7 +175,7 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
             real_card = true_card[idx].item()
 
             start_time = time.time()
-            estimated_cost, estimated_card = gbm.predict(plan, use_db_pred=use_db_pred, use_true=use_true)
+            estimated_cost, estimated_card = rf.predict(plan, use_db_pred=use_db_pred, use_true=use_true)
             end_time = time.time()
 
             cost_loss = q_loss(estimated_cost[0], real_cost, cost_label_min, cost_label_max)
@@ -297,7 +275,6 @@ if __name__ == '__main__':
     job_light_end = JOB_LIGHT // BATCH_SIZE - 1 if JOB_LIGHT % BATCH_SIZE == 0 else JOB_LIGHT // BATCH_SIZE
     scale_end = SCALE // BATCH_SIZE - 1 if SCALE % BATCH_SIZE == 0 else SCALE // BATCH_SIZE
     synthetic_end = SYNTHETIC // BATCH_SIZE - 1 if SYNTHETIC % BATCH_SIZE == 0 else SYNTHETIC // BATCH_SIZE
-    
 
     if dataset == 'census13':
         from ..dataset.census13 import columns_id, indexes_id, tables_id, max_string_dim
@@ -346,41 +323,38 @@ if __name__ == '__main__':
 
     phase=f'train_plan_{100000}'
 
-    gbm = TreeGBM(tree_pooler=model.pool, fast_inference=fast_inference)
+    rf = TreeRF(tree_pooler=model.pool)
 
     train_size = size // BATCH_SIZE - 1 if size % BATCH_SIZE == 0 else size // BATCH_SIZE
 
     times = []
     
-    model_dir = str(RESULT_ROOT) + '/models/' + dataset + '/' + method
+    model_dir = str(RESULT_ROOT) + '/models/' + dataset + '/' + 'rf'
 
     for i in range(num_models):
-        gbm_cost, gbm_card, train_time = train_gbm(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
+        rf_cost, rf_card, train_time = train_rf(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
         print(f'Time to train model {i+1}: {train_time}')
         times.append(train_time)
         
         if save:
             with open(model_dir + f'_{i+1}_cost.pickle', "wb") as f:
-                pickle.dump(gbm_cost, f, protocol=0)
+                pickle.dump(rf_cost, f, protocol=0)
             with open(model_dir + f'_{i+1}_card.pickle', "wb") as f:
-                pickle.dump(gbm_card, f, protocol=0)
+                pickle.dump(rf_card, f, protocol=0)
 
             print("Saved")
-            # with open(model_dir + f'_{i+1}_cost.pickle', "rb") as f:
-            #     gbm_cost = pickle.load(f)
-            # with open(model_dir + f'_{i+1}_card.pickle', "rb") as f:
-            #     gbm_card = pickle.load(f)
 
-        gbm.add_estimators(gbm_cost, gbm_card)
+        rf.add_estimators(rf_cost, rf_card)
             # pickle.dump(gbm_cost, open(model_dir + f'_{i+1}_cost.pkl', "wb"), protocol=4)
             # pickle.dump(gbm_card, open(model_dir + f'_{i+1}_card.pkl', "wb"), protocol=4)
+        break
         
 
     json_data = {
         'training_times':times
     }
 
-    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{method}_{name}_{phase}.json"
+    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{method}_{'rf'}_{phase}.json"
 
     with open(file_path, 'w') as f:
         json.dump(json_data, f)
@@ -394,13 +368,13 @@ if __name__ == '__main__':
         "scale": scale_end,
         "synthetic_plan": synthetic_end
     }
-
+    
     for phase in ['synthetic_plan', 'job-light_plan']:
-        evaluate_gbm(gbm, 0, ends[phase], directory, phase)
+        evaluate_rf(rf, 0, ends[phase], directory, phase)
         print('-'*100)
 
-        evaluate_gbm(gbm, 0, ends[phase], directory, phase, mode='use_true')
+        evaluate_rf(rf, 0, ends[phase], directory, phase, mode='use_true')
         print('-'*100)
 
-        evaluate_gbm(gbm, 0, ends[phase], directory, phase, mode='use_db_pred')
+        evaluate_rf(rf, 0, ends[phase], directory, phase, mode='use_db_pred')
         print('-'*100)

@@ -8,9 +8,15 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+dict = {}
 
 def traverse_tree(plan, nodes, depth):
     nodes += 1
+    
+    if plan["Node Type"] in dict:
+        dict[plan["Node Type"]] += 1 
+    else:
+        dict[plan["Node Type"]] = 1
     if 'Plans' not in plan or len(plan['Plans']) == 0:
         return nodes, 0
     
@@ -36,19 +42,11 @@ def extract_stats(plan_file):
     with open(plan_file, 'r') as f:
         plans = json.load(f)
         num_items = len(plans)
-        print(plans[-1])
-        # exit()
         for idx, plan in enumerate(plans): 
             
             print(f'{idx + 1}/{len(plans)}')
             
             nodes, depth = traverse_tree(plan, 0, 0)
-            # print("*"*10)
-            # # print(nodes)
-            
-            if nodes == 31:
-                print(plan)
-                exit()
 
             max_nodes = max(max_nodes, nodes)
             max_depth = max(max_depth, depth)
@@ -61,6 +59,8 @@ def extract_stats(plan_file):
     
     print(f'Avg Nodes: {nodes_sum / num_items}')
     print(f'Avg Depth: {depth_sum / num_items}')
+
+    print(nodes_sum, num_items)
             
 
 if __name__ == '__main__':
@@ -69,6 +69,8 @@ if __name__ == '__main__':
     plans_file = args.plans_file
     
     extract_stats(plans_file)
+
+    print(dict)
     
     
     

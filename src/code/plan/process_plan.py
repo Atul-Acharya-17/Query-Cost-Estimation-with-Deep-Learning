@@ -100,7 +100,7 @@ if __name__ == '__main__':
     phases = ['train', 'valid', 'test']
 
     if dataset == 'imdb':
-        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_500', 'train_plan_1000', 'train_plan_2000', 'train_plan_5000', 'train_plan_10000', 'train_plan_20000', 'train_plan_50000', 'train_plan_100000']
+        phases = ['job-light_plan', 'synthetic_plan', 'train_plan_100000']
 
         from ..dataset.imdb import get_data_and_samples
 

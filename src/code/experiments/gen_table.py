@@ -1,6 +1,8 @@
 import argparse
 import pandas as pd
 
+from ..constants import RESULT_ROOT
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='imdb')
@@ -19,7 +21,9 @@ if __name__ == '__main__':
     name = args.name
     file = args.file
 
-    df = pd.read_csv(dataset + '/' +  file)
+    directory = str(RESULT_ROOT) + '/output/'
+
+    df = pd.read_csv(directory + dataset + '/' +  file)
     print('Cost')
     print(f'{name} & {round(df.cost_errors.mean(), 2)} & {round(df.cost_errors.median(), 2)} & {round(df.cost_errors.quantile(0.9), 2)} & {round(df.cost_errors.quantile(0.95), 2)} & {round(df.cost_errors.quantile(0.99), 2)} & {round(df.cost_errors.max(), 2)} \\\\')
     print('-'*50)

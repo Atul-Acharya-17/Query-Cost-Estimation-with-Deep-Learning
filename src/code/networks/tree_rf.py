@@ -1,40 +1,21 @@
 import numpy as np
 
-import xgboost
-import lightgbm
-import daal4py as d4p
 
 
-class TreeGBM():
+class TreeRF():
 
-    def __init__(self, tree_pooler, fast_inference=False, num_features=1708) -> None:
-        self.card_gbm = []
-        self.cost_gbm = []
+    def __init__(self, tree_pooler, num_features=1708) -> None:
+        self.card_rf = []
+        self.cost_rf = []
         self.tree_pooler = tree_pooler
-        self.fast_inference = fast_inference
         self.n_features = num_features
 
     def num_features(self):
         return self.n_features
 
-    def add_estimators(self, cost, card):
-        if self.fast_inference:
-            if type(cost) == xgboost.XGBRegressor:
-                booster = cost.get_booster()
-                setattr(booster, 'num_features', self.num_features)
-                cost = d4p.get_gbt_model_from_xgboost(booster)
-            elif type(cost) == lightgbm.LGBMRegressor:
-                cost = d4p.get_gbt_model_from_lightgbm(cost.booster_)
-
-            if type(card) == xgboost.XGBRegressor:
-                booster = card.get_booster()
-                setattr(booster, 'num_features', self.num_features)
-                card = d4p.get_gbt_model_from_xgboost(booster)
-            elif type(card) == lightgbm.LGBMRegressor:
-                card = d4p.get_gbt_model_from_lightgbm(card.booster_)            
-
-        self.cost_gbm.append(cost)
-        self.card_gbm.append(card)
+    def add_estimators(self, cost, card):  
+        self.cost_rf.append(cost)
+        self.card_rf.append(card)
 
     def predict(self, plan, use_true=False, use_db_pred=False):
 
@@ -91,13 +72,10 @@ class TreeGBM():
         cost_sum = 0
         card_sum = 0
 
-        for model in self.cost_gbm:
-            if self.fast_inference:
-                cost = d4p.gbt_regression_prediction().compute(data, model).prediction[0]
-            else:
-                cost = model.predict(data)
+        for model in self.cost_rf:
+            cost = model.predict(data)
             cost_sum += cost
-        cost_pred = cost_sum / len(self.cost_gbm)
+        cost_pred = cost_sum / len(self.cost_rf)
 
 
         if use_db_pred:
@@ -107,14 +85,10 @@ class TreeGBM():
             card_pred = plan.cardinality
 
         else:
-            for model in self.card_gbm:
-                if self.fast_inference:
-                    card = d4p.gbt_regression_prediction().compute(data, model).prediction[0]
-                else:
-                    card = model.predict(data)
-
+            for model in self.card_rf:
+                card = model.predict(data)
                 card_sum += card
 
-            card_pred = card_sum / len(self.card_gbm)
+            card_pred = card_sum / len(self.card_rf)
 
         return cost_pred, card_pred

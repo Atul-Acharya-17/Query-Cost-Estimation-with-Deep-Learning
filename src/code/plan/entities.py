@@ -40,7 +40,7 @@ class PredicateNodeVector():
 
 class PlanNodeVector():
 
-    def __init__(self, operator_vec, extra_info_vec, condition1_root, condition2_root, sample_vec, has_condition, cost, cardinality) -> None:
+    def __init__(self, operator_vec, extra_info_vec, condition1_root, condition2_root, sample_vec, has_condition, cost, cardinality, db_estimate_card, unnorm_cost, unnorm_card, unnorm_db_estimate_card) -> None:
         self.operator_vec = operator_vec
         self.extra_info_vec = extra_info_vec
         self.condition1_root = condition1_root
@@ -49,6 +49,11 @@ class PlanNodeVector():
         self.has_cond = has_condition
         self.cost = cost
         self.cardinality = cardinality
+        self.db_estimate_card = db_estimate_card
+
+        self.true_card = unnorm_card
+        self.true_cost = unnorm_cost
+        self.unnorm_db_estimate_card = unnorm_db_estimate_card
 
         self.children = []
 

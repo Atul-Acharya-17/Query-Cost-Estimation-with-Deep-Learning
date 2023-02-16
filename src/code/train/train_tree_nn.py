@@ -381,4 +381,4 @@ if __name__ == '__main__':
             print('-'*100)
         
 
-        # torch.save(model.state_dict(), str(RESULT_ROOT) + "/models/" + dataset + f"/{name}.pt")
+        torch.save(model.state_dict(), str(RESULT_ROOT) + "/models/" + dataset + f"/{name}_new.pt")

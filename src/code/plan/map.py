@@ -17,6 +17,11 @@ physic_ops_id = {
     'Gather': 16
 }
 
+id2op = {}
+
+for key, value in physic_ops_id.items():
+    id2op[value] = key
+
 strategy_id = {
     'Plain':1
 }

@@ -85,10 +85,10 @@ class Result(Node):
         return 'Result'
 
 class Gather(Node):
-    def __init__(self, workers_planned, cardinality=None, cost=None, db_estimate_card=None):
+    def __init__(self, workers_planned, node_type='Gather', cardinality=None, cost=None, db_estimate_card=None):
         Node.__init__(self, cardinality=cardinality, cost=cost, db_estimate_card=db_estimate_card)
-        self.node_type = 'Gather'
+        self.node_type = node_type
         self.workers_planned = workers_planned
 
     def __str__(self):
-        return 'Gather' + ' with ' + str(self.workers_planned) + ' workers'
+        return self.node_type + ' with ' + str(self.workers_planned) + ' workers'

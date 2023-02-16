@@ -362,38 +362,39 @@ def encode_node(node, use_tree):
     return operator_vec, extra_info_vec, condition1, condition2, sample_vec, has_condition, cost, cardinality, db_estimate_card
 
 
-def plan_seq_2_tree_vec(seq, idx, use_tree=True):
-    if idx == len(seq):
+def plan_seq_2_tree_vec(seq, idx=0, use_tree=True):
+    if idx >= len(seq):
         return None, idx
     if seq[idx] is None:
         return None, idx + 1
-    while idx < len(seq):
         
-        operator, extra_info, condition1, condition2, sample, condition_mask, cost, cardinality, db_estimate_card = encode_node(seq[idx], use_tree=use_tree)
-        if dataset == 'imdb':
-            cardinality = normalize_label_log(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
-            cost = normalize_label_log(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
-            db_estimate_card = normalize_label_log(torch.FloatTensor([db_estimate_card]), card_label_min, card_label_max)
+    operator, extra_info, condition1, condition2, sample, condition_mask, unnorm_cost, unnorm_cardinality, unnorm_db_estimate_card = encode_node(seq[idx], use_tree=use_tree)
+    if dataset == 'imdb':
+        cardinality = normalize_label_log(torch.FloatTensor([unnorm_cardinality]), card_label_min, card_label_max)
+        cost = normalize_label_log(torch.FloatTensor([unnorm_cost]), cost_label_min, cost_label_max)
+        db_estimate_card = normalize_label_log(torch.FloatTensor([unnorm_db_estimate_card]), card_label_min, card_label_max)
 
-        else:
-            cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
-            cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
-            db_estimate_card = normalize_label(torch.FloatTensor([db_estimate_card]), card_label_min, card_label_max)
-            
-        node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality, db_estimate_card=db_estimate_card)
+    else:
+        cost = normalize_label(torch.FloatTensor([cost]), cost_label_min, cost_label_max)
+        cardinality = normalize_label(torch.FloatTensor([cardinality]), card_label_min, card_label_max)
+        db_estimate_card = normalize_label(torch.FloatTensor([db_estimate_card]), card_label_min, card_label_max)
+        
+    node = PlanNodeVector(operator_vec=operator, extra_info_vec=extra_info, condition1_root=condition1, condition2_root=condition2, sample_vec=sample, has_condition=condition_mask, cost=cost, cardinality=cardinality, db_estimate_card=db_estimate_card, unnorm_card=torch.FloatTensor([unnorm_cardinality]), unnorm_cost=torch.FloatTensor([unnorm_cost]), unnorm_db_estimate_card=torch.FloatTensor([unnorm_db_estimate_card]))
 
-        left_child, next_idx = plan_seq_2_tree_vec(seq, idx + 1, use_tree=use_tree)
-        if left_child is not None:
-            node.add_child(left_child)
-        else:
-            return node, next_idx
-        right_child, next_idx = plan_seq_2_tree_vec(seq, next_idx, use_tree=use_tree)
-        if right_child is not None:
-            node.add_child(right_child)
-        else:
-            return node, next_idx
-
+    left_child, next_idx = plan_seq_2_tree_vec(seq, idx + 1, use_tree=use_tree)
+    if left_child is not None:
+        node.add_child(left_child)
+    else:
         return node, next_idx
+    right_child, next_idx = plan_seq_2_tree_vec(seq, next_idx, use_tree=use_tree)
+    while next_idx < len(seq) and seq[next_idx] is None:
+        next_idx += 1
+    if right_child is not None:
+        node.add_child(right_child)
+    else:
+        return node, next_idx
+
+    return node, next_idx
 
 
 def encode_plan(plan, use_tree=True):

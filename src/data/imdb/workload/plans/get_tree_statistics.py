@@ -70,7 +70,8 @@ if __name__ == '__main__':
     
     extract_stats(plans_file)
 
-    print(dict)
+    for key in sorted(dict):
+        print((key, dict[key]))
     
     
     

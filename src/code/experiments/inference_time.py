@@ -10,8 +10,8 @@ tree_lstm = str(RESULT_ROOT) + '/output/imdb/results_best_tree_lstm_job-light_pl
 tree_attn = str(RESULT_ROOT) + '/output/imdb/results_best_tree_attn_job-light_plan.csv'
 tree_gru = str(RESULT_ROOT) + '/output/imdb/results_best_tree_gru_job-light_plan.csv'
 
-tree_xgb = str(RESULT_ROOT) + '/output/imdb/results_xgb_5_100_16_0.1_fast_False_job-light_plan.csv'
-tree_lgbm = str(RESULT_ROOT) + '/output/imdb/results_lgbm_5_100_8_0.1_fast_False_job-light_plan.csv'
+tree_xgb = str(RESULT_ROOT) + '/output/imdb/results_tree_xgb_use_estimator_fast_False_job-light_plan.csv'
+tree_lgbm = str(RESULT_ROOT) + '/output/imdb/results_tree_lgbm_use_estimator_fast_False_job-light_plan.csv'
 
 files = {
     'TreeNN':tree_nn,

@@ -101,10 +101,10 @@ class TreeGBM():
 
 
         if use_db_pred:
-            card_pred = plan.db_estimate_card
+            card_pred = np.array([plan.db_estimate_card.item()])
 
         elif use_true:
-            card_pred = plan.cardinality
+            card_pred = np.array([plan.cardinality.item()])
 
         else:
             for model in self.card_gbm:

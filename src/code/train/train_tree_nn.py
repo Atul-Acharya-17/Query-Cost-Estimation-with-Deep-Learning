@@ -137,7 +137,7 @@ def train_batch(train_start, train_end, validate_start, validate_end, num_epochs
         card_loss_train.append(card_loss_total / num_samples)
 
         if val:
-            valid_cost_losses, valid_card_losses, _ = validate(model, validate_start, validate_end, directory, phase=val_phase, entire_batch=True)
+            valid_cost_losses, valid_card_losses, _, _, _, _, _= validate(model, validate_start, validate_end, directory, phase=val_phase, entire_batch=True)
             avg_cost_loss = sum(valid_cost_losses) / len(valid_cost_losses)
             avg_card_loss = sum(valid_card_losses) / len(valid_card_losses)
 
@@ -166,6 +166,12 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
     card_losses = []
     
     inference_times = []
+
+    cost_preds = []
+    cost_actual = []
+
+    card_preds = []
+    card_actual = []
 
     num_samples=0
 
@@ -196,6 +202,11 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
                 
                 inference_times.append(end_time - start_time)
 
+                cost_preds.append(unnormalize_log(estimate_cost[0].item(), mini=cost_label_min, maxi=cost_label_max))
+                card_preds.append(unnormalize_log(estimate_cardinality[0].item(), mini=card_label_min, maxi=card_label_max))
+                cost_actual.append(cost.item())
+                card_actual.append(card.item())
+
         else:
             num_samples += len(input_batch)
 
@@ -209,7 +220,7 @@ def validate(model, start_idx, end_idx, directory, phase='valid', batch=True, en
             cost_losses += cost_loss
             card_losses += card_loss
 
-    return cost_losses, card_losses, inference_times
+    return cost_losses, card_losses, inference_times, cost_preds, card_preds, cost_actual, card_actual
 
 
 def parse_args():
@@ -226,7 +237,7 @@ def parse_args():
 
 
 def val_and_print(model, test_end, directory, phase, name='tree_lstm'):
-    cost_losses, card_losses, inference_times = validate(model, 0, test_end, directory, phase)
+    cost_losses, card_losses, inference_times, cost_preds, card_preds, cost_actual, card_actual = validate(model, 0, test_end, directory, phase)
 
     cost_metrics = {
         'max': np.max(cost_losses),
@@ -258,7 +269,7 @@ def val_and_print(model, test_end, directory, phase, name='tree_lstm'):
 
     print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}, \nInference Time metrics: {time_metrics}")
     
-    stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times)), columns=['cost_errors', 'card_errors', 'inference_time'])
+    stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times, cost_preds, cost_actual, card_preds, card_actual)), columns=['cost_errors', 'card_errors', 'inference_time', 'cost_pred', 'cost_actual', 'card_pred', 'card_actual'])
     stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_{name}_{phase}.csv")
 
 

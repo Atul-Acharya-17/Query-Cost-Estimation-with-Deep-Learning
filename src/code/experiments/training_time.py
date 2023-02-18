@@ -12,8 +12,8 @@ tree_lstm = str(RESULT_ROOT) + '/output/imdb/training_statistics_tree_lstm_train
 tree_attn = str(RESULT_ROOT) + '/output/imdb/training_statistics_tree_attn_train.json'
 tree_gru = str(RESULT_ROOT) + '/output/imdb/training_statistics_tree_gru_train.json'
 
-tree_xgb = str(RESULT_ROOT) + '/output/imdb/training_statistics_xgb_train_plan_100000.json'
-tree_lgbm = str(RESULT_ROOT) + '/output/imdb/training_statistics_lgbm_train_plan_100000.json'
+tree_xgb = str(RESULT_ROOT) + '/output/imdb/training_statistics_xgb_tree_xgb_train_plan_100000.json'
+tree_lgbm = str(RESULT_ROOT) + '/output/imdb/training_statistics_lgbm_tree_lgbm_train_plan_100000.json'
 
 
 files = {

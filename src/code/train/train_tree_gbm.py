@@ -176,6 +176,12 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
     
     inference_times = []
 
+    cost_preds = []
+    cost_actual = []
+
+    card_preds = []
+    card_actual = []
+
     use_true = False
     use_db_pred = False
 
@@ -200,6 +206,9 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
             estimated_cost, estimated_card = gbm.predict(plan, use_db_pred=use_db_pred, use_true=use_true)
             end_time = time.time()
 
+            # print(estimated_cost)
+            # print(real_cost)
+
             cost_loss = q_loss(estimated_cost[0], real_cost, cost_label_min, cost_label_max)
             card_loss = q_loss(estimated_card[0], real_card, card_label_min, card_label_max)
 
@@ -207,6 +216,12 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
             card_losses.append(card_loss)
                 
             inference_times.append(end_time - start_time)
+
+            cost_actual.append(real_cost)
+            card_actual.append(real_card)
+
+            cost_preds.append(unnormalize_log(estimated_cost[0], mini=cost_label_min, maxi=cost_label_max))
+            card_preds.append(unnormalize_log(estimated_card[0], mini=card_label_min, maxi=card_label_max))
 
     cost_metrics = {
         'max': np.max(cost_losses),
@@ -242,7 +257,7 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
     print(f"{round(card_metrics['mean'], 2)} & {round(card_metrics['median'], 2)} & {round(card_metrics['90th'], 2)} & {round(card_metrics['95th'], 2)} & {round(card_metrics['99th'], 2)} & {round(card_metrics['max'], 2)}")
 
     
-    stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times)), columns=['cost_errors', 'card_errors', 'inference_time'])
+    stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times, cost_preds, cost_actual, card_preds, card_actual)), columns=['cost_errors', 'card_errors', 'inference_time', 'cost_pred', 'cost_actual', 'card_pred', 'card_actual'])
     stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_{name}_{mode}_fast_{fast_inference}_{phase}.csv")
 
 
@@ -252,7 +267,7 @@ def parse_args():
     parser.add_argument('--dataset', default='imdb')
     parser.add_argument('--name', default='tree_xgb_100000')
     parser.add_argument('--embedding-type', default='tree_pool')
-    parser.add_argument('--size', default=10000, type=int)
+    parser.add_argument('--size', default=100000, type=int)
     parser.add_argument('--method', default='xgb')
     parser.add_argument('--num-models', default=5, type=int)
     parser.add_argument('--depth', default=8, type=int)

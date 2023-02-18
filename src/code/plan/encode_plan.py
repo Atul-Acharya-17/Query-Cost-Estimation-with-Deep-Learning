@@ -364,7 +364,7 @@ def encode_node(node, use_tree):
 
 def plan_seq_2_tree_vec(seq, idx=0, use_tree=True):
     if idx >= len(seq):
-        return None, idx
+        return None, idx + 1
     if seq[idx] is None:
         return None, idx + 1
         
@@ -387,6 +387,7 @@ def plan_seq_2_tree_vec(seq, idx=0, use_tree=True):
     else:
         return node, next_idx
     right_child, next_idx = plan_seq_2_tree_vec(seq, next_idx, use_tree=use_tree)
+
     while next_idx < len(seq) and seq[next_idx] is None:
         next_idx += 1
     if right_child is not None:

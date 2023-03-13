@@ -6,7 +6,7 @@ from ..constants import RESULT_ROOT
 plt.style.use('seaborn-whitegrid')
 
 
-tree_lgbm_est_card = str(RESULT_ROOT) + '/output/imdb/results_tree_lgbm_use_estimator_fast_True_job-light_plan.csv'
+tree_lgbm_est_card = str(RESULT_ROOT) + '/output/imdb/results_tree_lgbm_use_estimator_fast_False_job-light_plan.csv'
 tree_lgbm_db_card = str(RESULT_ROOT) + '/output/imdb/results_tree_lgbm_use_db_pred_fast_True_job-light_plan.csv'
 
 tree_xgb_est_card = str(RESULT_ROOT) + '/output/imdb/results_tree_xgb_use_estimator_fast_True_job-light_plan.csv'
@@ -14,10 +14,10 @@ tree_xgb_db_card = str(RESULT_ROOT) + '/output/imdb/results_tree_xgb_use_db_pred
 
 
 files = {
-    'TreeLGBM \n est_card': tree_lgbm_est_card,
-    'TreeLGBM \n db_card': tree_lgbm_db_card,
-    'TreeXGB \n est_card': tree_xgb_est_card,
-    'TreeXGB \n db_card': tree_xgb_db_card
+    'TreeLGBM \n Est Card': tree_lgbm_est_card,
+    'TreeLGBM \n DB Card': tree_lgbm_db_card,
+    'TreeXGB \n Est Card': tree_xgb_est_card,
+    'TreeXGB \n DB Card': tree_xgb_db_card
     
 }
 

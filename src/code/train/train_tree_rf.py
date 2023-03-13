@@ -136,8 +136,8 @@ def train_rf(train_start, train_end, directory, phase, model):
 
     print(X_train.shape)
 
-    cost_rf = RandomForestRegressor(random_state=0, n_estimators=10, max_depth=14)
-    card_rf = RandomForestRegressor(random_state=0, n_estimators=10, max_depth=14)
+    cost_rf = RandomForestRegressor(random_state=0, n_estimators=50, max_depth=14)
+    card_rf = RandomForestRegressor(random_state=0, n_estimators=50, max_depth=14)
     start_time = time.time()
     cost_rf.fit(X_train, y_cost)
     card_rf.fit(X_train, y_card)
@@ -228,10 +228,10 @@ def evaluate_rf(rf, start_idx, end_idx, directory, phase, mode='use_estimator'):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='imdb')
-    parser.add_argument('--name', default='tree_xgb_100000')
+    parser.add_argument('--name', default='tree_rf_100000')
     parser.add_argument('--embedding-type', default='tree_pool')
     parser.add_argument('--size', default=10000, type=int)
-    parser.add_argument('--method', default='xgb')
+    parser.add_argument('--method', default='rf')
     parser.add_argument('--num-models', default=5, type=int)
     parser.add_argument('--depth', default=8, type=int)
     parser.add_argument('--learning-rate', default=0.1, type=float)

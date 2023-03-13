@@ -282,7 +282,7 @@ def save_training_stats(cost_loss_train, cost_loss_val, card_loss_train, card_lo
         'training_times':training_times
     }
     
-    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{name}_{phase}.json"
+    file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{method}_{name}_{phase}.json"
 
     with open(file_path, 'w') as f:
         json.dump(json_data, f)
@@ -378,7 +378,7 @@ if __name__ == '__main__':
         valid_start = train_end
         valid_end = train_size
         
-        model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{size}', val=True, val_phase=f'train_plan_{size}', method=method)
+        model, best_model, cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times = train_batch(0, train_end, valid_start, valid_end, epochs, directory=directory, phase=f'train_plan_{100000}', val=True, val_phase=f'train_plan_{100000}', method=method)
 
         save_training_stats(cost_loss_train, cost_loss_val, card_loss_train, card_loss_val, training_times, dataset, name, phase='train')
 

@@ -4,7 +4,6 @@ pyvenv.cfg
 bin/
 include/
 data/*
-*.csv
 *__pycache__
 .env
 Scripts/

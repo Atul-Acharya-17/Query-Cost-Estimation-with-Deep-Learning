@@ -242,7 +242,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='imdb')
     parser.add_argument('--test-set', default='job-light_plans')
-    parser.add_argument('--method', default='xgb')
+    parser.add_argument('--method', default='lgbm')
 
     args = parser.parse_args()
     return args

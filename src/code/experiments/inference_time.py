@@ -5,15 +5,18 @@ from ..constants import RESULT_ROOT
 
 plt.style.use('seaborn-whitegrid')
 
+
+postgres = str(RESULT_ROOT) + '/output/imdb/results_postgres_job_light_plans.csv'
 tree_nn = str(RESULT_ROOT) + '/output/imdb/results_best_tree_nn_job-light_plan.csv'
 tree_lstm = str(RESULT_ROOT) + '/output/imdb/results_best_tree_lstm_job-light_plan.csv'
 tree_attn = str(RESULT_ROOT) + '/output/imdb/results_best_tree_attn_job-light_plan.csv'
 tree_gru = str(RESULT_ROOT) + '/output/imdb/results_best_tree_gru_job-light_plan.csv'
 
-tree_xgb = str(RESULT_ROOT) + '/output/imdb/results_tree_xgb_use_estimator_fast_False_job-light_plan.csv'
+tree_xgb = str(RESULT_ROOT) + '/output/imdb/results_tree_xgb_use_estimator_fast_True_job-light_plan.csv'
 tree_lgbm = str(RESULT_ROOT) + '/output/imdb/results_tree_lgbm_use_estimator_fast_False_job-light_plan.csv'
 
 files = {
+    'Postgres': postgres,
     'TreeNN':tree_nn,
     'TreeGRU': tree_gru,
     'TreeLSTM': tree_lstm,

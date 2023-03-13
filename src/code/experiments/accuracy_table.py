@@ -48,5 +48,5 @@ if __name__ == '__main__':
                     'mae': np.mean(abs((df[error + '_pred'] - df[error + '_actual'])))
                 }
 
-                print(f"{name} & {round(stats['mean'], 2)} & {round(stats['median'], 2)} & {round(stats['90th'], 2)} & {round(stats['95th'], 2)} & {round(stats['99th'], 2)} & {round(stats['max'], 2)} & {round(stats['mae'], 2)}")
+                print(f"{name} & {round(stats['mean'], 2)} & {round(stats['median'], 2)} & {round(stats['90th'], 2)} & {round(stats['95th'], 2)} & {round(stats['99th'], 2)} & {round(stats['max'], 2)} & {round(stats['mae'], 2)} \\\\")
                 

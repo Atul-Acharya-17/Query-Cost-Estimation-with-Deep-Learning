@@ -1,3 +1,20 @@
+# Only for lgbm
+# Decide values to tune.
+
+import argparse
+
+hp = {
+    'boosting_type': ['gbdt', 'dart'],
+    'num_leaves': [x for x in range(10, 101, 1)],
+    'max_depth': [x for x in range(6, 33, 2)],
+    'n_estimators': [x for x in range(50, 301, 1)],
+    'colsample_bytree': [x / 100 for x in range(60, 101, 5)],
+    'min_child_samples': [x for x in range(5, 30, 5)],
+    'reg_alpha': [x / 100 for x in range(0, 21, 1)],
+    'reg_lambda': [x / 100 for x in range(0, 21, 1)],
+    'learning_rate': [0.1] + [x / 100 for x in range(5, 101, 5)]
+}
+
 import argparse
 import pandas as pd
 import numpy as np
@@ -10,6 +27,8 @@ import xgboost
 import lightgbm
 import warnings
 
+import matplotlib.pyplot as plt
+
 
 warnings.filterwarnings("ignore")
 
@@ -17,9 +36,9 @@ import pickle
 
 from ..plan.utils import unnormalize, unnormalize_log
 from ..plan.entities import PredicateNodeVector, PlanNodeVector
-from .loss_fn import q_error
+from ..train.loss_fn import q_error
 from ..plan.utils import obtain_upper_bound_query_size, obtain_upper_bound_query_size_log
-from .helpers import get_batch_job_tree
+from ..train.helpers import get_batch_job_tree
 from ..plan.map import physic_ops_id, compare_ops_id, bool_ops_id, id2op
 
 from ..networks.tree_lstm import TreeLSTMBatch
@@ -35,12 +54,9 @@ from ..plan.utils import class2json
 
 def q_error_loss(pred, target, mini, maxi):
 
-    if dataset == 'imdb':
-        pred = unnormalize_log(pred, mini=mini, maxi=maxi)
-        target = unnormalize_log(target, mini=mini, maxi=maxi)    
-    else:    
-        pred = unnormalize(pred, mini=mini, maxi=maxi)
-        target = unnormalize(target, mini=mini, maxi=maxi)
+    # Only for imdb dataset
+    pred = unnormalize_log(pred, mini=mini, maxi=maxi)
+    target = unnormalize_log(target, mini=mini, maxi=maxi)    
 
     q_err = q_error(pred, target)
     return q_err
@@ -113,21 +129,6 @@ def flatten_plan(node, tree_pooler):
 
     return x_data, y_cost, y_card, cost, card
 
-
-def plan2dict(node):
-    operation_vec = np.array(node.operator_vec)
-
-    node_type = id2op[np.argmax(operation_vec) + 1]
-
-    if len(node.children)==0:
-        return f"{node_type}"
-    elif len(node.children)==1:
-        return f"{node_type}: [{plan2dict(node.children[0])}]"
-    else:
-        return f"{node_type}: [{plan2dict(node.children[0])} , {plan2dict(node.children[1])}]"
-    
-
-
 def generate_training_data(train_start, train_end, directory, phase, tree_pooler):
     X_train = []
     y_cost = []
@@ -143,23 +144,31 @@ def generate_training_data(train_start, train_end, directory, phase, tree_pooler
     return X_train, y_cost, y_card
 
 
-def train_gbm(train_start, train_end, directory, phase, model):
+def train_tree_gbm(train_start, train_end, directory, phase, model, method='lgbm', hp_dict={'max_depth':6, 'n_estimators':100, 'eta':0.3, 'learning_rate':0.1, 'num_leaves':31}):
+
     X_train, y_cost, y_card = generate_training_data(train_start, train_end, directory=directory, phase=phase, tree_pooler=model.pool)
 
     X_train = np.concatenate(X_train, axis=0)
     y_cost = np.concatenate(y_cost, axis=0).reshape(-1, 1)
     y_card = np.concatenate(y_card, axis=0).reshape(-1, 1)
 
-    print(X_train.shape)
+    n_estimators = hp_dict['n_estimators']
+    eta = hp_dict['eta']
+    learning_rate = hp_dict['learning_rate']
+    max_depth = hp_dict['max_depth']
+    num_leaves = hp_dict['num_leaves']
+    
 
+
+    # Generate TreeGBM
     if method == 'xgb':
-        gbm_card = xgboost.XGBRegressor(seed=0)#n_estimators=100, max_depth=16, eta=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
-        gbm_cost = xgboost.XGBRegressor(seed=0)#n_estimators=100, max_depth=16, eta=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
-
+        gbm_card = xgboost.XGBRegressor(seed=0, n_estimators=n_estimators, max_depth=max_depth, eta=eta, num_leaves=num_leaves)
+        gbm_cost = xgboost.XGBRegressor(seed=0, n_estimators=n_estimators, max_depth=max_depth, eta=eta, num_leaves=num_leaves)
     else:
-        gbm_card = lightgbm.LGBMRegressor()#num_leaves=31, n_estimators=100, max_depth=6, learning_rate=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
-        gbm_cost = lightgbm.LGBMRegressor()#num_leaves=31, n_estimators=100, max_depth=6, learning_rate=0.1, subsample=0.7, colsample_bytree=0.8, seed=0)
+        gbm_card = lightgbm.LGBMRegressor(seed=0, n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, num_leaves=num_leaves)
+        gbm_cost = lightgbm.LGBMRegressor(seed=0, n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, num_leaves=num_leaves)
 
+    
     start_time = time.time()
     gbm_cost.fit(X_train, y_cost)
     gbm_card.fit(X_train, y_card)
@@ -170,7 +179,7 @@ def train_gbm(train_start, train_end, directory, phase, model):
     return gbm_cost, gbm_card, training_time
 
 
-def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'):
+def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, key):
     cost_losses = []
     card_losses = []
     
@@ -184,14 +193,6 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
 
     use_true = False
     use_db_pred = False
-
-    if mode == 'use_true':
-        use_true=True
-
-    elif mode == 'use_db_pred':
-        use_db_pred=True
-
-    print(phase, mode, use_true, use_db_pred)
 
     for batch_idx in range(start_idx, end_idx + 1):
         input_batch, target_cost, target_cardinality, true_cost, true_card = get_batch_job_tree(batch_idx, phase=phase, directory=directory, get_unnorm=True)
@@ -250,89 +251,43 @@ def evaluate_gbm(gbm, start_idx, end_idx, directory, phase, mode='use_estimator'
         'mean': np.mean(inference_times),        
     }
 
+    if key not in pred_dict:
+        pred_dict[key] = {}
 
-    print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}, \nInference Time metrics: {time_metrics}")
-    print(f"{phase}, {mode}")
+    if phase not in pred_dict[key]:
+        pred_dict[key][phase] = {}
+
+    pred_dict[key][phase]['cost_metrics'] = cost_metrics
+    pred_dict[key][phase]['card_metrics'] = card_metrics
+    pred_dict[key][phase]['time_metrics'] = time_metrics
+
+
+    #print(f"cost metrics: {cost_metrics}, \ncardinality metrics: {card_metrics}, \nInference Time metrics: {time_metrics}")
     print(f"{round(cost_metrics['mean'], 2)} & {round(cost_metrics['median'], 2)} & {round(cost_metrics['90th'], 2)} & {round(cost_metrics['95th'], 2)} & {round(cost_metrics['99th'], 2)} & {round(cost_metrics['max'], 2)}")
     print(f"{round(card_metrics['mean'], 2)} & {round(card_metrics['median'], 2)} & {round(card_metrics['90th'], 2)} & {round(card_metrics['95th'], 2)} & {round(card_metrics['99th'], 2)} & {round(card_metrics['max'], 2)}")
-
-    
-    # stats_df = pd.DataFrame(list(zip(cost_losses, card_losses, inference_times, cost_preds, cost_actual, card_preds, card_actual)), columns=['cost_errors', 'card_errors', 'inference_time', 'cost_pred', 'cost_actual', 'card_pred', 'card_actual'])
-    # stats_df.to_csv(str(RESULT_ROOT) + "/output/" + dataset + f"/results_{name}_{mode}_fast_{fast_inference}_{phase}.csv")
-
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='imdb')
-    parser.add_argument('--name', default='tree_xgb_100000')
-    parser.add_argument('--embedding-type', default='tree_pool')
-    parser.add_argument('--size', default=100000, type=int)
+    parser.add_argument('--iterations', default=100, type=int)
     parser.add_argument('--method', default='xgb')
-    parser.add_argument('--num-models', default=5, type=int)
-    parser.add_argument('--depth', default=8, type=int)
-    parser.add_argument('--learning-rate', default=0.1, type=float)
-    parser.add_argument('--n_estimators', default=100, type=int)
-    parser.add_argument('--fast-inference', action='store_true')
-    parser.add_argument('--parallel', action='store_true')
-    parser.add_argument('--save', action='store_true')
-    parser.add_argument('--use-norm', action='store_true')
 
     args = parser.parse_args()
     return args
 
 
 if __name__ == '__main__':
-
+    pred_dict = {}
+    time_dict = {}
+    dataset='imdb'
+    size=100000
     args = parse_args()
 
-    use_norm = args.use_norm
-    
-    dataset = args.dataset
-    size = args.size
-    num_models = args.num_models
-    method = args.method
-    name = args.name
+    method=args.method
 
-    depth = args.depth
-    learning_rate = args.learning_rate
-    n_estimators = args.n_estimators
-
-    fast_inference = args.fast_inference
-    parallel = args.parallel
-    
-    save = args.save
-
-    if fast_inference:
-        print("Using fast inference")
-
-    train_end = NUM_TRAIN // BATCH_SIZE - 1 if NUM_TRAIN % BATCH_SIZE == 0 else NUM_TRAIN // BATCH_SIZE
-    valid_end = NUM_VAL // BATCH_SIZE - 1 if NUM_VAL % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
-    test_end = NUM_TEST // BATCH_SIZE - 1 if NUM_TEST % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
-
-    job_train_end = JOB_TRAIN // BATCH_SIZE - 1 if JOB_TRAIN % BATCH_SIZE == 0 else JOB_TRAIN // BATCH_SIZE
-    job_light_end = JOB_LIGHT // BATCH_SIZE - 1 if JOB_LIGHT % BATCH_SIZE == 0 else JOB_LIGHT // BATCH_SIZE
-    scale_end = SCALE // BATCH_SIZE - 1 if SCALE % BATCH_SIZE == 0 else SCALE // BATCH_SIZE
-    synthetic_end = SYNTHETIC // BATCH_SIZE - 1 if SYNTHETIC % BATCH_SIZE == 0 else SYNTHETIC // BATCH_SIZE
-    
-
-    if dataset == 'census13':
-        from ..dataset.census13 import columns_id, indexes_id, tables_id, max_string_dim
-
-    elif dataset == 'forest10':
-        from ..dataset.forest10 import columns_id, indexes_id, tables_id, max_string_dim
-
-    if dataset == 'power7':
-        from ..dataset.power7 import columns_id, indexes_id, tables_id, max_string_dim
-
-    elif dataset == 'dmv11':
-        from ..dataset.dmv11 import columns_id, indexes_id, tables_id, max_string_dim
-
-    elif dataset == 'imdb':
-        from ..dataset.imdb import columns_id, indexes_id, tables_id, max_string_dim
+    from ..dataset.imdb import columns_id, indexes_id, tables_id, max_string_dim
 
     train_path = "train_plan_100000"
-
     plan_node_max_num, condition_max_num, cost_label_min, cost_label_max, card_label_min, card_label_max = obtain_upper_bound_query_size_log(str(DATA_ROOT) + "/" + dataset + "/workload/plans/" + f"{train_path}_encoded.json")
 
     print(card_label_min, card_label_max)
@@ -359,65 +314,76 @@ if __name__ == '__main__':
 
     model.eval()
 
-    directory = str(DATA_ROOT) + "/" + dataset + "/workload/tree_data/"
+    directory = str(DATA_ROOT) + "/" + dataset + "/workload/tree_data"
 
     phase=f'train_plan_{100000}'
 
-    gbm = TreeGBM(tree_pooler=model.pool, fast_inference=fast_inference)
-
     train_size = size // BATCH_SIZE - 1 if size % BATCH_SIZE == 0 else size // BATCH_SIZE
 
-    times = []
-    
-    model_dir = str(RESULT_ROOT) + '/models/' + dataset + '/' + method
 
-    for i in range(num_models):
-        gbm_cost, gbm_card, train_time = train_gbm(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, phase, model)
-        print(f'Time to train model {i+1}: {train_time}')
-        times.append(train_time)
-        
-        if save:
-            with open(model_dir + f'_{i+1}_cost.pickle', "wb") as f:
-                pickle.dump(gbm_cost, f, protocol=0)
-            with open(model_dir + f'_{i+1}_card.pickle', "wb") as f:
-                pickle.dump(gbm_card, f, protocol=0)
+    max_depth = hp['max_depth']
 
-            print("Saved")
-            # with open(model_dir + f'_{i+1}_cost.pickle', "rb") as f:
-            #     gbm_cost = pickle.load(f)
-            # with open(model_dir + f'_{i+1}_card.pickle', "rb") as f:
-            #     gbm_card = pickle.load(f)
+    num_models = 5
 
-        gbm.add_estimators(gbm_cost, gbm_card)
-            # pickle.dump(gbm_cost, open(model_dir + f'_{i+1}_cost.pkl', "wb"), protocol=4)
-            # pickle.dump(gbm_card, open(model_dir + f'_{i+1}_card.pkl', "wb"), protocol=4)
-        
+    train_end = NUM_TRAIN // BATCH_SIZE - 1 if NUM_TRAIN % BATCH_SIZE == 0 else NUM_TRAIN // BATCH_SIZE
+    valid_end = NUM_VAL // BATCH_SIZE - 1 if NUM_VAL % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
+    test_end = NUM_TEST // BATCH_SIZE - 1 if NUM_TEST % BATCH_SIZE == 0 else NUM_VAL // BATCH_SIZE
 
-    json_data = {
-        'training_times':times
-    }
+    job_train_end = JOB_TRAIN // BATCH_SIZE - 1 if JOB_TRAIN % BATCH_SIZE == 0 else JOB_TRAIN // BATCH_SIZE
+    job_light_end = JOB_LIGHT // BATCH_SIZE - 1 if JOB_LIGHT % BATCH_SIZE == 0 else JOB_LIGHT // BATCH_SIZE
+    scale_end = SCALE // BATCH_SIZE - 1 if SCALE % BATCH_SIZE == 0 else SCALE // BATCH_SIZE
+    synthetic_end = SYNTHETIC // BATCH_SIZE - 1 if SYNTHETIC % BATCH_SIZE == 0 else SYNTHETIC // BATCH_SIZE
 
-    # file_path = str(RESULT_ROOT) + "/output/" + dataset + f"/training_statistics_{method}_{name}_{phase}.json"
+    for depth in max_depth:
+        print('Hyperparameter: ', depth)
+        gbm = TreeGBM(tree_pooler=model.pool, fast_inference=True)
+        times = []
+        for i in range(num_models):
+            hp_dict = { 'max_depth': 6,'n_estimators': 100,'eta': 0.3,'learning_rate': 0.1,'num_leaves': 31 }
+            hp_dict['max_depth'] = depth
+            gbm_cost, gbm_card, train_time = train_tree_gbm(i*(int(train_size/num_models)), (i+1)*int(train_size/num_models), directory, 'train_plan_100000', model, method, hp_dict=hp_dict)
+            print(f'Time to train model {i+1}: {train_time}')
+            times.append(train_time)
+            gbm.add_estimators(gbm_cost, gbm_card)
 
-    # with open(file_path, 'w') as f:
-    #     json.dump(json_data, f)
+        time_dict[depth] = times
 
-    ends = {
-        "train": train_end,
-        "valid": valid_end,
-        "test": test_end,
-        "job-train": job_train_end,
-        "job-light_plan": job_light_end,
-        "scale": scale_end,
-        "synthetic_plan": synthetic_end
-    }
+        ends = {
+            "train": train_end,
+            "valid": valid_end,
+            "test": test_end,
+            "job-train": job_train_end,
+            "job-light_plan": job_light_end,
+            "scale": scale_end,
+            "synthetic_plan": synthetic_end
+        }
 
-    for phase in ['synthetic_plan', 'job-light_plan']:
-        gbm.parallel = False
-        evaluate_gbm(gbm, 0, ends[phase], directory, phase)
+        for phase in ['synthetic_plan', 'job-light_plan']:
+            print('\n', phase)
+            evaluate_gbm(gbm, 0, ends[phase], directory, phase, depth)
         print('-'*100)
 
-        # gbm.parallel = True
-        # evaluate_gbm(gbm, 0, ends[phase], directory, phase, mode='parallel')
-        # print('-'*100)
+    x_data = max_depth
+    y_data_synthetic_mean = [cost['mean'] for cost in [pred_dict[d]['synthetic_plan']['cost_metrics'] for d in x_data]]
+    y_data_job_light_mean = [cost['mean'] for cost in [pred_dict[d]['job-light_plan']['cost_metrics'] for d in x_data]]
 
+
+    plt.plot(x_data, y_data_synthetic_mean, label='Synthetic', marker='x')
+    plt.plot(x_data, y_data_job_light_mean, label='JOB-ligth', marker='x')
+    plt.ylabel('Cost Errors Mean')
+    plt.xlabel('Num Training samples')
+    plt.legend(['Synthetic500', 'JOB-light'])
+
+    plt.show()
+
+    x_data = max_depth
+    y_data_synthetic_mean = [card['mean'] for card in [pred_dict[d]['synthetic_plan']['card_metrics'] for d in x_data]]
+    y_data_job_light_mean = [card['mean'] for card in [pred_dict[d]['job-light_plan']['card_metrics'] for d in x_data]]
+
+    plt.plot(x_data, y_data_synthetic_mean, label='Synthetic', marker='x')
+    plt.plot(x_data, y_data_job_light_mean, label='JOB-ligth', marker='x')
+    plt.ylabel('Cardinality Errors Mean')
+    plt.xlabel('Num Training samples')
+    plt.legend(['Synthetic500', 'JOB-light'])
+
+    plt.show()
